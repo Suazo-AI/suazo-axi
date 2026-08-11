@@ -158,17 +158,25 @@ function normalizedProject(value) {
   return normalized;
 }
 
+function projectValues(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object' && !Array.isArray(value) && Array.isArray(value.projects)) {
+    return value.projects;
+  }
+  throw new AxiError('provider-invalid-response', 'Supabase returned a non-list response');
+}
+
 export async function projectList(limit = DEFAULT_LIMIT, options = {}) {
   validateLimit(limit);
   const value = await invoke(['projects', 'list', '--output-format', 'json'], PROJECTS_TIMEOUT_MS, options);
-  if (!Array.isArray(value)) throw new AxiError('provider-invalid-response', 'Supabase returned a non-list response');
-  const items = value.slice(0, limit).map(normalizedProject);
+  const values = projectValues(value);
+  const items = values.slice(0, limit).map(normalizedProject);
   return {
     data: { items },
     meta: {
       returned: items.length,
       limit,
-      truncated: value.length > limit,
+      truncated: values.length > limit,
       totalKnown: true,
       empty: items.length === 0,
     },

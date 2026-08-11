@@ -105,7 +105,7 @@ test('Supabase projects list uses fixed argv, applies limits, and reports trunca
   ];
   const runner = async (file, args, options) => {
     call = { file, args, options };
-    return { code: 0, stdout: JSON.stringify(raw), stderr: '' };
+    return { code: 0, stdout: JSON.stringify({ projects: raw, message: null }), stderr: '' };
   };
   const result = await projectList(1, { transportResolver, runner });
   assert.deepEqual(call, {
@@ -182,7 +182,7 @@ test('Supabase preserves bounded transport errors and rejects non-list payloads 
   await assert.rejects(
     () => projectList(10, {
       transportResolver,
-      runner: async () => ({ code: 0, stdout: '{"projects":[]}', stderr: '' }),
+      runner: async () => ({ code: 0, stdout: '{"projects":{}}', stderr: '' }),
     }),
     (error) => error.code === 'provider-invalid-response' && error.message === 'Supabase returned a non-list response',
   );

@@ -38,8 +38,8 @@ test('GitHub JSON normalization keeps compact fields', () => {
   assert.deepEqual(normalizeRepo({ nameWithOwner: 'o/r', description: '', visibility: 'PUBLIC', url: 'https://example.invalid/o/r' }), {
     name: 'o/r', description: null, visibility: 'public', url: 'https://example.invalid/o/r',
   });
-  assert.deepEqual(Object.keys(normalizePr({ number: 1, title: 'T', state: 'OPEN', updatedAt: 'now' })), ['number', 'title', 'state', 'updatedAt']);
-  assert.equal(normalizeIssue({ number: 2, title: 'I', state: 'CLOSED', updatedAt: 'then' }).state, 'closed');
+  assert.deepEqual(Object.keys(normalizePr({ number: 1, title: 'T', state: 'OPEN', updatedAt: '2026-08-11T10:00:00Z' })), ['number', 'title', 'state', 'updatedAt']);
+  assert.equal(normalizeIssue({ number: 2, title: 'I', state: 'CLOSED', updatedAt: '2026-08-11T11:00:00Z' }).state, 'closed');
 });
 
 test('GitHub repo names are validated before provider invocation', () => {

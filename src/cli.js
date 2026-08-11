@@ -31,6 +31,13 @@ const HELP = {
   doctor: ['doctor [--format json]'],
 };
 
+const GITHUB_OPERATIONS = Object.freeze({
+  status: githubStatus,
+  repoView,
+  prList,
+  issueList,
+});
+
 function commandHelp(topic) { return HELP[topic] || ROOT_HELP; }
 
 function compactPath(value) {
@@ -57,7 +64,7 @@ function rejectFlags(flags, allowed) {
   for (const name of Object.keys(flags)) if (!allowed.includes(name) && name !== 'format') throw invalid('invalid-flag', `--${name} is not valid for this command`);
 }
 
-async function dispatch(positionals, flags) {
+async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS } = {}) {
   if (flags.help || positionals[0] === 'help' || positionals[0] === '--help') {
     const topic = positionals[0] === 'help' ? positionals[1] : positionals[0];
     return { command: 'help', data: { usage: commandHelp(topic) }, meta: { empty: false }, help: [] };
@@ -105,18 +112,18 @@ async function dispatch(positionals, flags) {
     if (resource === 'status') {
       assertCount(positionals, 2, 2, 'github status');
       rejectFlags(flags, []);
-      return { command: 'github status', ...(await githubStatus()), help: ['github repo view'] };
+      return { command: 'github status', ...(await github.status()), help: ['github repo view'] };
     }
     if (resource === 'repo' && action === 'view') {
       assertCount(positionals, 3, 3, 'github repo view [--repo owner/name]');
       rejectFlags(flags, ['repo']);
-      return { command: 'github repo view', ...(await repoView(flags.repo)), help: ['github pr list', 'github issue list'] };
+      return { command: 'github repo view', ...(await github.repoView(flags.repo)), help: ['github pr list', 'github issue list'] };
     }
     if ((resource === 'pr' || resource === 'issue') && action === 'list') {
       assertCount(positionals, 3, 3, `github ${resource} list [flags]`);
       rejectFlags(flags, ['repo', 'limit']);
       const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
-      const result = resource === 'pr' ? await prList(flags.repo, limit) : await issueList(flags.repo, limit);
+      const result = resource === 'pr' ? await github.prList(flags.repo, limit) : await github.issueList(flags.repo, limit);
       return { command: `github ${resource} list`, ...result, help: result.meta.empty ? [`No open ${resource === 'pr' ? 'pull requests' : 'issues'} found`] : [`github ${resource} list --limit ${Math.min(limit + 20, 100)}`] };
     }
     throw invalid('unknown-command', 'Unknown GitHub command', { next: commandHelp('github') });
@@ -178,14 +185,14 @@ function commandLabel(positionals) {
   return 'unknown';
 }
 
-export async function execute(argv) {
+export async function execute(argv, options = {}) {
   let command = 'unknown';
   let format = 'compact';
   try {
     const parsed = parseArgs(argv);
     command = commandLabel(parsed.positionals);
     format = parsed.flags.format || 'compact';
-    const result = await dispatch(parsed.positionals, parsed.flags);
+    const result = await dispatch(parsed.positionals, parsed.flags, options);
     return { exitCode: 0, output: formatResult(success(result.command, result.data, { meta: result.meta, help: result.help }), format) };
   } catch (error) {
     const normalized = error instanceof AxiError ? error : new AxiError('internal-error', 'Unexpected internal error');

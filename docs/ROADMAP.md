@@ -1,11 +1,11 @@
 # Roadmap
 
-## Implemented in Phase 1
+## Implemented
 
 - Stable envelope, compact AXI subset, JSON format, help, dashboard, and doctor
 - Root-constrained local list/read/find using Node built-ins
 - GitHub status, repository view, pull request list, and issue list through `gh`
-- Vercel deployment list and view through the authenticated Vercel CLI
+- Vercel Phase 2 deployment list and view through the authenticated Vercel CLI
 
 ## Planned CLI adapters
 

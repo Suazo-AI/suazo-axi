@@ -6,6 +6,8 @@ import {
   deploymentList,
   deploymentView,
   normalizeDeployment,
+  resolveVercelTransport,
+  vercelStatus,
   validateDeployment,
   validateProject,
 } from '../src/adapters/vercel.js';
@@ -83,4 +85,53 @@ test('Vercel inputs reject option-shaped and malformed values before invocation'
   assert.doesNotThrow(() => validateDeployment('dpl_ABC123'));
   assert.doesNotThrow(() => validateDeployment('axi.vercel.app'));
   assert.throws(() => validateDeployment('--token'), /deployment must be/);
+});
+
+test('Vercel transport prefers the secure wrapper and safely falls back on Windows', async () => {
+  const secure = await resolveVercelTransport({
+    platform: 'win32',
+    resolver: async (name) => ({ 'vercel-secure': 'C:\\bin\\vercel-secure.cmd', 'powershell.exe': 'C:\\Windows\\powershell.exe' })[name] || null,
+    fileExists: async () => true,
+  });
+  assert.equal(secure.file, 'C:\\Windows\\powershell.exe');
+  assert.equal(secure.auth, 'secure-wrapper');
+  assert.match(secure.prefixArgs.at(-1), /Invoke-VercelSecure\.ps1$/);
+
+  const fallback = await resolveVercelTransport({
+    platform: 'win32',
+    resolver: async (name) => name === 'vercel-secure' ? 'C:\\bin\\vercel-secure.cmd' : name === 'vercel' ? 'C:\\npm\\vercel.cmd' : null,
+    fileExists: async () => true,
+    nodePath: 'C:\\node\\node.exe',
+  });
+  assert.equal(fallback.file, 'C:\\node\\node.exe');
+  assert.deepEqual(fallback.prefixArgs, ['C:\\npm\\node_modules\\vercel\\dist\\vc.js']);
+});
+
+test('Vercel transport reports a missing CLI and uses direct executables on POSIX', async () => {
+  const direct = await resolveVercelTransport({ platform: 'linux', resolver: async () => '/usr/bin/vercel' });
+  assert.deepEqual(direct, { file: '/usr/bin/vercel', prefixArgs: [], auth: 'vercel-cli' });
+  await assert.rejects(
+    () => resolveVercelTransport({ platform: 'linux', resolver: async () => null }),
+    (error) => error.code === 'adapter-unavailable',
+  );
+});
+
+test('Vercel status distinguishes unavailable, ready, and degraded probes', async () => {
+  const ready = await vercelStatus({ transportResolver, runner: async () => ({ code: 0, stdout: '{"username":"user"}', stderr: '' }) });
+  assert.deepEqual(ready.data, { available: true, authenticated: true });
+  const degraded = await vercelStatus({ transportResolver, runner: async () => ({ code: 0, stdout: 'not-json', stderr: '' }) });
+  assert.deepEqual(degraded.data, { available: true, authenticated: false, degraded: true });
+  const unavailable = await vercelStatus({ transportResolver: async () => { throw new AxiError('adapter-unavailable', 'missing'); } });
+  assert.deepEqual(unavailable.data, { available: false, authenticated: false });
+});
+
+test('Vercel rejects valid JSON with incomplete deployment shapes', async () => {
+  await assert.rejects(
+    () => deploymentList(undefined, 1, { transportResolver, runner: async () => ({ code: 0, stdout: '{"deployments":[{}]}', stderr: '' }) }),
+    (error) => error.code === 'provider-invalid-response',
+  );
+  await assert.rejects(
+    () => deploymentView('valid.vercel.app', { transportResolver, runner: async () => ({ code: 0, stdout: '{}', stderr: '' }) }),
+    (error) => error.code === 'provider-invalid-response',
+  );
 });

@@ -47,13 +47,13 @@ async function exists(file) {
   try { await fs.access(file); return true; } catch { return false; }
 }
 
-export async function resolveVercelTransport({ resolver = resolveExecutable, platform = process.platform } = {}) {
+export async function resolveVercelTransport({ resolver = resolveExecutable, platform = process.platform, fileExists = exists, nodePath = process.execPath } = {}) {
   if (platform === 'win32') {
     const secureShim = await resolver('vercel-secure');
     if (secureShim) {
       const script = path.join(path.dirname(secureShim), 'Invoke-VercelSecure.ps1');
       const powershell = await resolver('powershell.exe') || await resolver('powershell');
-      if (powershell && await exists(script)) {
+      if (powershell && await fileExists(script)) {
         return {
           file: powershell,
           prefixArgs: ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script],
@@ -67,7 +67,7 @@ export async function resolveVercelTransport({ resolver = resolveExecutable, pla
   if (!executable) throw new AxiError('adapter-unavailable', 'Vercel CLI is unavailable');
   if (platform === 'win32' && /\.(?:cmd|bat)$/i.test(executable)) {
     const entry = path.join(path.dirname(executable), 'node_modules', 'vercel', 'dist', 'vc.js');
-    if (await exists(entry)) return { file: process.execPath, prefixArgs: [entry], auth: 'vercel-cli' };
+    if (await fileExists(entry)) return { file: nodePath, prefixArgs: [entry], auth: 'vercel-cli' };
     throw new AxiError('adapter-unavailable', 'Vercel CLI launcher is unavailable');
   }
   return { file: executable, prefixArgs: [], auth: 'vercel-cli' };
@@ -92,11 +92,22 @@ export async function vercelStatus(options = {}) {
     return { data: { available: true, authenticated: true }, meta: { empty: false } };
   } catch (error) {
     if (error.code === 'adapter-unavailable') return { data: { available: false, authenticated: false }, meta: { empty: false } };
-    if (error.code === 'vercel-error' || error.code === 'provider-invalid-response') {
-      return { data: { available: true, authenticated: false }, meta: { empty: false } };
-    }
-    throw error;
+    return { data: { available: true, authenticated: false, degraded: true }, meta: { empty: false } };
   }
+}
+
+function normalizedDeployment(value, { detailed = false } = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new AxiError('provider-invalid-response', 'Vercel returned an invalid deployment');
+  }
+  const normalized = normalizeDeployment(value);
+  const required = detailed
+    ? ['reference', 'id', 'project', 'url', 'state', 'createdAt']
+    : ['reference', 'project', 'url', 'state', 'createdAt'];
+  if (required.some((field) => !normalized[field])) {
+    throw new AxiError('provider-invalid-response', 'Vercel returned an incomplete deployment');
+  }
+  return normalized;
 }
 
 export async function deploymentList(project, limit, options = {}) {
@@ -107,7 +118,7 @@ export async function deploymentList(project, limit, options = {}) {
   args.push('--limit', String(limit), '--json', '--non-interactive', '--no-color');
   const value = await invoke(args, options);
   if (!Array.isArray(value.deployments)) throw new AxiError('provider-invalid-response', 'Vercel returned a non-list response');
-  const items = value.deployments.map(normalizeDeployment);
+  const items = value.deployments.map((item) => normalizedDeployment(item));
   const hasNext = value.pagination?.next !== null && value.pagination?.next !== undefined;
   return {
     data: { items },
@@ -118,5 +129,5 @@ export async function deploymentList(project, limit, options = {}) {
 export async function deploymentView(deployment, options = {}) {
   validateDeployment(deployment);
   const value = await invoke(['inspect', deployment, '--json', '--non-interactive', '--no-color'], options);
-  return { data: normalizeDeployment(value.deployment || value), meta: { empty: false } };
+  return { data: normalizedDeployment(value.deployment || value, { detailed: true }), meta: { empty: false } };
 }

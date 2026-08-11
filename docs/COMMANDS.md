@@ -16,6 +16,8 @@ Global output is compact AXI text by default. Add `--format json` anywhere. `hel
 | `github issue list [--repo owner/name] [--limit N]` | Return number, title, state, and update time |
 | `vercel deployment list [project] [--limit N]` | Return compact deployments across the active scope or one project |
 | `vercel deployment view <deployment-reference>` | Return compact deployment details using the ID or hostname returned by list |
+| `supabase status [--workdir path]` | Return whitelisted local service endpoints without keys or database credentials |
+| `supabase projects list [--limit N]` | Return compact hosted project metadata for the logged-in CLI user |
 
 Limits are positive integers. GitHub list limits are capped at 100 and filesystem limits at 1000. Repo names must be `owner/name` and cannot start with an option-shaped owner. `files list --full` returns the complete directory listing. Default file reads open a verified handle and consume only a bounded UTF-8 byte window; `files read --full` deliberately reads complete content and can use memory proportional to file size. Empty lists set `meta.empty: true` and return an explicit empty array.
 

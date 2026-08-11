@@ -6,6 +6,7 @@
 - Root-constrained local list/read/find using Node built-ins
 - GitHub status, repository view, pull request list, and issue list through `gh`
 - Vercel Phase 2 deployment list and view through the authenticated Vercel CLI
+- Supabase Phase 3 local status and hosted project list through the official CLI
 
 ## Planned CLI adapters
 

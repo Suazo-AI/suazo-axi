@@ -27,7 +27,7 @@ test('shared CLI harness preserves fixed argv, timeout, cap, and JSON', async ()
 test('shared CLI harness redacts provider output and maps invalid JSON', async () => {
   const secret = 'secret-value-7391';
   await assert.rejects(
-    () => runJsonCli({ provider: 'demo', file: 'demo', args: ['list'], runner: async () => ({ code: 9, stdout: '', stderr: secret }) }),
+    () => runJsonCli({ provider: 'demo', file: 'demo', args: ['list'], runner: async () => ({ code: 9, stdout: `{\"error\":{\"code\":\"SafeProviderCode\",\"message\":\"${secret}\"}}`, stderr: secret }) }),
     (error) => error.code === 'demo-error' && !JSON.stringify(error).includes(secret) && error.details.exitCode === 9,
   );
   await assert.rejects(

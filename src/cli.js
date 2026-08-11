@@ -7,6 +7,7 @@ import { listFiles, readFile, findFiles } from './adapters/files.js';
 import { doctor } from './adapters/doctor.js';
 import { githubStatus, repoView, prList, issueList } from './adapters/github.js';
 import { deploymentList, deploymentView } from './adapters/vercel.js';
+import { supabaseStatus, projectList } from './adapters/supabase.js';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +18,7 @@ const ROOT_HELP = [
   'files <list|read|find> ...',
   'github <status|repo view|pr list|issue list> ...',
   'vercel deployment <list|view> ...',
+  'supabase <status|projects list> ...',
   'help [command]',
 ];
 
@@ -24,6 +26,7 @@ const HELP = {
   files: ['files list [path] [--root path] [--limit N] [--full]', 'files read <path> [--root path] [--max-chars N] [--full]', 'files find <query> [path] [--root path] [--limit N]'],
   github: ['github status', 'github repo view [--repo owner/name]', 'github pr list [--repo owner/name] [--limit N]', 'github issue list [--repo owner/name] [--limit N]'],
   vercel: ['vercel deployment list [project] [--limit N]', 'vercel deployment view <deployment-reference>'],
+  supabase: ['supabase status [--workdir path]', 'supabase projects list [--limit N]'],
   integrations: ['integrations list [--fields id,domain,transport,phase,status,capabilities]'],
   doctor: ['doctor [--format json]'],
 };
@@ -133,6 +136,21 @@ async function dispatch(positionals, flags) {
     }
     throw invalid('unknown-command', 'Unknown Vercel command', { next: commandHelp('vercel') });
   }
+  if (domain === 'supabase') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'supabase status [--workdir path]');
+      rejectFlags(flags, ['workdir']);
+      return { command: 'supabase status', ...(await supabaseStatus(flags.workdir || process.cwd())), help: ['supabase projects list'] };
+    }
+    if (resource === 'projects' && action === 'list') {
+      assertCount(positionals, 3, 3, 'supabase projects list [--limit N]');
+      rejectFlags(flags, ['limit']);
+      const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
+      const result = await projectList(limit);
+      return { command: 'supabase projects list', ...result, help: result.meta.empty ? ['No accessible projects found'] : ['supabase status --workdir <path>'] };
+    }
+    throw invalid('unknown-command', 'Unknown Supabase command', { next: commandHelp('supabase') });
+  }
   throw invalid('unknown-command', 'Unknown command', { next: ROOT_HELP });
 }
 
@@ -151,6 +169,11 @@ function commandLabel(positionals) {
   if (positionals[0] === 'vercel') {
     if (positionals[1] === 'deployment' && ['list', 'view'].includes(positionals[2])) return `vercel deployment ${positionals[2]}`;
     return 'vercel';
+  }
+  if (positionals[0] === 'supabase') {
+    if (positionals[1] === 'status') return 'supabase status';
+    if (positionals[1] === 'projects' && positionals[2] === 'list') return 'supabase projects list';
+    return 'supabase';
   }
   return 'unknown';
 }

@@ -8,6 +8,7 @@ import {
   projectList,
   resolveSupabaseTransport,
   supabaseStatus,
+  supabaseAccessStatus,
   validateLimit,
 } from '../src/adapters/supabase.js';
 
@@ -82,7 +83,7 @@ test('Supabase status uses a strict whitelist and strips credentials and URL sec
   assert.equal(JSON.stringify(normalized).includes(secret), false);
 });
 
-test('Supabase status rejects invalid workdirs before provider invocation and exposes empty state', async () => {
+test('Supabase status rejects invalid workdirs and incomplete provider payloads', async () => {
   let called = false;
   await assert.rejects(() => supabaseStatus('', {
     transportResolver,
@@ -90,11 +91,10 @@ test('Supabase status rejects invalid workdirs before provider invocation and ex
   }), (error) => error.code === 'invalid-workdir');
   assert.equal(called, false);
 
-  const result = await supabaseStatus('safe-local-project', {
-    transportResolver,
-    runner: async () => ({ code: 0, stdout: '{}', stderr: '' }),
-  });
-  assert.deepEqual(result, { data: { running: true, services: {} }, meta: { empty: true } });
+  await assert.rejects(
+    () => supabaseStatus('safe-local-project', { transportResolver, runner: async () => ({ code: 0, stdout: '{}', stderr: '' }) }),
+    (error) => error.code === 'provider-invalid-response',
+  );
 });
 
 test('Supabase projects list uses fixed argv, applies limits, and reports truncation', async () => {
@@ -186,4 +186,24 @@ test('Supabase preserves bounded transport errors and rejects non-list payloads 
     }),
     (error) => error.code === 'provider-invalid-response' && error.message === 'Supabase returned a non-list response',
   );
+});
+
+test('Supabase rejects incomplete project items', async () => {
+  await assert.rejects(
+    () => projectList(10, { transportResolver, runner: async () => ({ code: 0, stdout: '[{}]', stderr: '' }) }),
+    (error) => error.code === 'provider-invalid-response',
+  );
+});
+
+test('Supabase auth probe distinguishes login required from degraded failures', async () => {
+  const authRequired = await supabaseAccessStatus({
+    transportResolver,
+    runner: async () => ({ code: 1, stdout: '{"error":{"code":"LegacyPlatformAuthRequiredError","message":"redacted"}}', stderr: '' }),
+  });
+  assert.deepEqual(authRequired.data, { available: true, authenticated: false });
+  const degraded = await supabaseAccessStatus({
+    transportResolver,
+    runner: async () => ({ code: 1, stdout: '{"error":{"code":"NetworkFailure","message":"redacted"}}', stderr: '' }),
+  });
+  assert.deepEqual(degraded.data, { available: true, authenticated: false, degraded: true });
 });

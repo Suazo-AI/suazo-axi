@@ -38,9 +38,11 @@ test('doctor degrades a failed GitHub probe and still completes detection', asyn
   const result = await doctor({
     githubProbe: async () => { throw new Error('probe failure'); },
     vercelProbe: async () => ({ data: { available: true, authenticated: true } }),
+    supabaseProbe: async () => ({ data: { available: false, authenticated: false } }),
     resolver: async (command) => command === 'ntn' ? 'C:/bin/ntn.cmd' : null,
   });
   assert.equal(result.data.adapters.find((item) => item.id === 'github').status, 'degraded');
   assert.equal(result.data.adapters.find((item) => item.id === 'notion').status, 'detected');
   assert.equal(result.data.adapters.find((item) => item.id === 'vercel').status, 'ready');
+  assert.equal(result.data.adapters.find((item) => item.id === 'supabase').status, 'unavailable');
 });

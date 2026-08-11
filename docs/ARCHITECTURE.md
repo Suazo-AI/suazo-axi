@@ -10,9 +10,11 @@ flowchart LR
   CLI --> Files[Files adapter]
   CLI --> GitHub[GitHub adapter]
   CLI --> Vercel[Vercel adapter]
+  CLI --> Supabase[Supabase adapter]
   Files --> FS[Node built-in filesystem]
   GitHub --> GH[Existing gh CLI]
   Vercel --> VC[Existing Vercel CLI or secure local wrapper]
+  Supabase --> SB[Official Supabase CLI]
   Core --> Out[Compact AXI text or JSON]
   Bridges[Optional host/MCP bridge] -. future .-> CLI
 ```

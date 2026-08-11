@@ -1,6 +1,7 @@
 import { resolveExecutable } from '../core/executable.js';
 import { githubStatus } from './github.js';
 import { vercelStatus } from './vercel.js';
+import { supabaseAccessStatus } from './supabase.js';
 
 const CLI_PROBES = [
   ['notion', 'ntn'],
@@ -8,7 +9,7 @@ const CLI_PROBES = [
   ['higgsfield', 'higgsfield'],
 ];
 
-export async function doctor({ githubProbe = githubStatus, vercelProbe = vercelStatus, resolver = resolveExecutable } = {}) {
+export async function doctor({ githubProbe = githubStatus, vercelProbe = vercelStatus, supabaseProbe = supabaseAccessStatus, resolver = resolveExecutable } = {}) {
   let github;
   try { github = await githubProbe(); } catch {
     github = { data: { available: true, authenticated: false, degraded: true } };
@@ -17,11 +18,16 @@ export async function doctor({ githubProbe = githubStatus, vercelProbe = vercelS
   try { vercel = await vercelProbe(); } catch {
     vercel = { data: { available: true, authenticated: false, degraded: true } };
   }
+  let supabase;
+  try { supabase = await supabaseProbe(); } catch {
+    supabase = { data: { available: true, authenticated: false, degraded: true } };
+  }
   const probes = await Promise.all(CLI_PROBES.map(async ([id, command]) => ({ id, available: Boolean(await resolver(command)) })));
   const adapters = [
     { id: 'files', status: 'ready' },
     { id: 'github', status: github.data.degraded ? 'degraded' : github.data.available ? (github.data.authenticated ? 'ready' : 'authentication-required') : 'unavailable' },
     { id: 'vercel', status: vercel.data.degraded ? 'degraded' : vercel.data.available ? (vercel.data.authenticated ? 'ready' : 'authentication-required') : 'unavailable' },
+    { id: 'supabase', status: supabase.data.degraded ? 'degraded' : supabase.data.available ? (supabase.data.authenticated ? 'ready' : 'authentication-required') : 'unavailable' },
     ...probes.map((probe) => ({ id: probe.id, status: probe.available ? 'detected' : 'not-detected' })),
     { id: 'outlook-email', status: 'host-bridge-required' },
     { id: 'stitch', status: 'host-bridge-required' },

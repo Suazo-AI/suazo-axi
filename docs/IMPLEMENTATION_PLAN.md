@@ -20,6 +20,7 @@ This plan advances one read-only adapter at a time while preserving the dependen
 | Outlook Email | Native Codex connector; host owns auth | Supported host bridge to native connector | Blocked: bridge contract first | Message list/read/search; no send/update/delete | Mock bridge conformance plus approved host integration evidence | Disable bridge registration; no auth export |
 | Notion | `ntn` CLI; CLI owns auth | Narrow `ntn` adapter | Page search/read increment | Read-only; no page mutation | Offline argv/normalization tests, then user-approved authenticated smoke test | Remove routing and retain planned manifest |
 | Vercel | Vercel CLI or local secure wrapper; CLI owns auth | Implemented narrow Vercel CLI adapter | Maintain deployment list/view | Read-only; no deploy/promote/delete | Shared harness, offline fixtures, safe auth probe, authenticated list-to-view smoke | Remove Vercel routing and restore its manifest to planned |
+| Supabase | Official Supabase CLI; CLI owns auth | Implemented narrow Supabase CLI adapter | Maintain local status and hosted project list | Read-only; no init/start/reset/link/push or remote mutation | Shared harness, secret-whitelist fixtures, login classification, controlled local and authenticated remote smokes | Remove Supabase routing and restore its manifest to planned |
 | Firecrawl | Firecrawl CLI; CLI owns auth | Narrow Firecrawl CLI adapter | Search first, scrape second | Read-only retrieval; no crawl job mutation | Bounded-output fixtures, redaction checks, approved smoke test | Disable newest action independently |
 | Higgsfield | Higgsfield CLI; CLI owns auth | Narrow Higgsfield CLI adapter | Generation list/view metadata | Read-only; generation remains out of scope | Offline fixtures and approved smoke test without generation | Remove routing and retain planned manifest |
 | Stitch | MCP in host; host owns auth | Supported host bridge | Blocked: bridge contract first | Design list/view only | Mock bridge contract and approved host evidence | Disable bridge registration |
@@ -40,13 +41,16 @@ Browser work should prefer `chrome-devtools-axi` if it is later installed and ap
 1. Preserve Phase 1 contracts: manifest/schema alignment, safe doctor detection, sanitized errors, and offline regression coverage.
 2. Add a reusable adapter conformance harness covering envelopes, fixed argv, normalization, empty states, timeouts, output caps, and redaction.
 3. Ship Vercel deployment list/view as one adapter increment.
-4. Ship Notion page search/read as one adapter increment.
-5. Ship Firecrawl search, then scrape as separate increments because scrape payload and output limits differ.
-6. Ship Higgsfield list/view metadata without generation.
-7. Evaluate `gh-axi` behind ordered backend selection while retaining `gh` fallback.
-8. After explicit approval, evaluate and install `chrome-devtools-axi`, then ship browser inspect/capture.
-9. Define a versioned host-bridge protocol before adding Outlook Email, Stitch, or Hermes.
-10. After the user chooses and approves a calendar provider and authentication path, ship event list/view.
+4. Ship Supabase local status and hosted project list as one adapter increment.
+5. Pass GitHub through the shared conformance harness and add only workflow-required reads.
+6. Integrate Codex through the lean wrapper with explicit cwd, prompt-file, timeout, and mode.
+7. Ship Notion page search/read as one adapter increment.
+8. Ship Firecrawl search, then scrape as separate increments because scrape payload and output limits differ.
+9. Ship Higgsfield list/view metadata without generation.
+10. Evaluate `gh-axi` behind ordered backend selection while retaining `gh` fallback.
+11. After explicit approval, evaluate and install `chrome-devtools-axi`, then ship browser inspect/capture.
+12. Define a versioned host-bridge protocol before adding Outlook Email, Stitch, or Hermes.
+13. After the user chooses and approves a calendar provider and authentication path, ship event list/view.
 
 Each increment must be independently releasable and reversible. No increment may silently broaden read scope or add mutation.
 

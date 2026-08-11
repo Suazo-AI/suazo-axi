@@ -144,14 +144,25 @@ export async function supabaseStatus(workdir, options = {}) {
   validateWorkdir(workdir);
   const value = await invoke(['status', '-o', 'json', '--workdir', workdir], STATUS_TIMEOUT_MS, options);
   const data = normalizeStatus(value);
-  return { data, meta: { empty: Object.keys(data.services).length === 0 } };
+  if (Object.keys(data.services).length === 0) {
+    throw new AxiError('provider-invalid-response', 'Supabase returned an incomplete local status');
+  }
+  return { data, meta: { empty: false } };
+}
+
+function normalizedProject(value) {
+  const normalized = normalizeProject(value);
+  if ((!normalized.ref && !normalized.id) || !normalized.name) {
+    throw new AxiError('provider-invalid-response', 'Supabase returned an incomplete project');
+  }
+  return normalized;
 }
 
 export async function projectList(limit = DEFAULT_LIMIT, options = {}) {
   validateLimit(limit);
   const value = await invoke(['projects', 'list', '--output-format', 'json'], PROJECTS_TIMEOUT_MS, options);
   if (!Array.isArray(value)) throw new AxiError('provider-invalid-response', 'Supabase returned a non-list response');
-  const items = value.slice(0, limit).map(normalizeProject);
+  const items = value.slice(0, limit).map(normalizedProject);
   return {
     data: { items },
     meta: {
@@ -162,4 +173,17 @@ export async function projectList(limit = DEFAULT_LIMIT, options = {}) {
       empty: items.length === 0,
     },
   };
+}
+
+export async function supabaseAccessStatus(options = {}) {
+  try {
+    await projectList(1, options);
+    return { data: { available: true, authenticated: true }, meta: { empty: false } };
+  } catch (error) {
+    if (error.code === 'adapter-unavailable') return { data: { available: false, authenticated: false }, meta: { empty: false } };
+    if (error.details?.providerCode === 'LegacyPlatformAuthRequiredError') {
+      return { data: { available: true, authenticated: false }, meta: { empty: false } };
+    }
+    return { data: { available: true, authenticated: false, degraded: true }, meta: { empty: false } };
+  }
 }

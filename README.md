@@ -2,7 +2,7 @@
 
 `suazo-axi` is a dependency-free Node.js ESM CLI that puts a compact, stable AXI-first interface over existing authenticated transports. It is a thin local broker: it neither stores credentials nor replaces provider backends.
 
-Implemented adapters cover local files with Node built-ins, GitHub through the existing `gh` CLI, and Vercel deployment list/view through the existing authenticated Vercel CLI. Static catalog statuses are durable lifecycle facts: `implemented`, `planned`, `host-bridge-required`, or `unconfigured`. Point-in-time readiness appears only in `doctor`.
+Implemented adapters cover local files with Node built-ins, GitHub through `gh`, Vercel deployment list/view, and Supabase local status/project list through their existing CLIs. Static catalog statuses are durable lifecycle facts: `implemented`, `planned`, `host-bridge-required`, or `unconfigured`. Point-in-time readiness appears only in `doctor`.
 
 ## Use
 

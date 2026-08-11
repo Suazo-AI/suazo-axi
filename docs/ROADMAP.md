@@ -7,6 +7,7 @@
 - GitHub status, repository view, pull request list, and issue list through `gh`
 - Vercel Phase 2 deployment list and view through the authenticated Vercel CLI
 - Supabase Phase 3 local status and hosted project list through the official CLI
+- Codex Phase 4 status and bounded agent runs through the global lean wrapper with a forced read-only sandbox
 
 ## Planned CLI adapters
 

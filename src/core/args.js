@@ -1,6 +1,6 @@
 import { invalid } from './errors.js';
 
-const VALUE_FLAGS = new Set(['format', 'fields', 'root', 'limit', 'max-chars', 'repo', 'workdir']);
+const VALUE_FLAGS = new Set(['format', 'fields', 'root', 'limit', 'max-chars', 'repo', 'workdir', 'prompt-file', 'cwd', 'timeout-ms', 'effort', 'mode']);
 const BOOL_FLAGS = new Set(['full', 'help']);
 
 export function parseArgs(argv) {

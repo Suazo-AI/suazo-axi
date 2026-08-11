@@ -9,6 +9,17 @@ test('catalog has unique ids and honest status categories', () => {
   assert.ok(integrations.every((item) => ['implemented', 'planned', 'host-bridge-required', 'unconfigured'].includes(item.status)));
   assert.equal(integrations.find((item) => item.id === 'calendar').status, 'unconfigured');
   assert.equal(integrations.find((item) => item.id === 'outlook-email').status, 'host-bridge-required');
+  assert.deepEqual(integrations.find((item) => item.id === 'codex'), {
+    id: 'codex',
+    domain: 'agents',
+    transport: 'codex-lean-wrapper',
+    phase: 4,
+    status: 'implemented',
+    capabilities: [
+      { resource: 'authentication', actions: ['status'], mutation: false },
+      { resource: 'agent-run', actions: ['run'], mutation: false },
+    ],
+  });
   assert.deepEqual(Object.keys(selectIntegrations(['id', 'status'])[0]), ['id', 'status']);
 });
 

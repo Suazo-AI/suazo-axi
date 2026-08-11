@@ -2,7 +2,9 @@
 
 `suazo-axi` is a dependency-free Node.js ESM CLI that puts a compact, stable AXI-first interface over existing authenticated transports. It is a thin local broker: it neither stores credentials nor replaces provider backends.
 
-Implemented adapters cover local files with Node built-ins, GitHub through `gh`, Vercel deployment list/view, and Supabase local status/project list through their existing CLIs. Static catalog statuses are durable lifecycle facts: `implemented`, `planned`, `host-bridge-required`, or `unconfigured`. Point-in-time readiness appears only in `doctor`.
+Implemented adapters cover local files with Node built-ins, GitHub through `gh`, Vercel deployment list/view, Supabase local status/project list, and read-only Codex runs through the global lean wrapper.
+Static catalog statuses are durable lifecycle facts: `implemented`, `planned`, `host-bridge-required`, or `unconfigured`.
+Point-in-time readiness appears only in `doctor`.
 
 ## Use
 
@@ -13,6 +15,8 @@ node bin/suazo-axi.js
 node bin/suazo-axi.js integrations list --format json
 node bin/suazo-axi.js files list . --root . --limit 10
 node bin/suazo-axi.js github pr list --repo owner/name --limit 20
+node bin/suazo-axi.js codex status
+node bin/suazo-axi.js codex run --prompt-file task.md --cwd . --mode read-only
 ```
 
 The stable shape is `suazo-axi <domain> <resource> <action> [flags]`. Every result has `axi`, `ok`, `command`, `data`, `meta`, and `help`; errors also have a structured `error`. Exit code `0` means success, `1` means an operational/provider failure, and `2` means invalid input.
@@ -23,4 +27,10 @@ See [commands](docs/COMMANDS.md), [architecture](docs/ARCHITECTURE.md), [authent
 
 ## Safety
 
-Phase 1 is read-only. Files are constrained to `--root`, symlink escapes and traversal are rejected, default reads consume a bounded byte window, and recursive search is bounded. `files read --full` is an explicit, potentially unbounded request. Provider commands use fixed argument arrays with no shell, timeouts, output caps, process-tree termination, and hidden Windows process windows. Credentials and environment values are never printed. A malicious local process concurrently rewriting the allowed filesystem tree is outside the complete cross-platform guarantee; see the threat model.
+Implemented adapters are read-only.
+Files are constrained to `--root`, symlink escapes and traversal are rejected, default reads consume a bounded byte window, and recursive search is bounded.
+`files read --full` is an explicit, potentially unbounded request.
+Codex runs require existing prompt and workspace paths and always pass `-Sandbox read-only` to the approved lean wrapper.
+Provider commands use fixed argument arrays with no shell, timeouts, output caps, process-tree termination, and hidden Windows process windows.
+The broker never directly prints credentials, prompt files, provider diagnostics, or environment values.
+A malicious local process concurrently rewriting the allowed filesystem tree is outside the complete cross-platform guarantee; see the threat model.

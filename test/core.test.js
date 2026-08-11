@@ -25,6 +25,7 @@ test('formatters are deterministic and JSON is parseable', () => {
 test('argument parser validates flags and integers', () => {
   assert.deepEqual(parseArgs(['files', 'list', '--limit', '5']).flags, { limit: '5' });
   assert.equal(parseArgs(['files', 'list', '--root=C:\\safe=a=b']).flags.root, 'C:\\safe=a=b');
+  assert.equal(parseArgs(['codex', 'run', '--prompt-file=C:\\safe path\\prompt=a=b.md']).flags['prompt-file'], 'C:\\safe path\\prompt=a=b.md');
   assert.equal(positiveInt('5', 'limit', 20), 5);
   assert.throws(() => positiveInt('0', 'limit', 20), /positive integer/);
   assert.throws(() => parseArgs(['--mystery']), /Unknown flag/);

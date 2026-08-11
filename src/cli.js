@@ -8,6 +8,7 @@ import { doctor } from './adapters/doctor.js';
 import { githubStatus, repoView, prList, issueList } from './adapters/github.js';
 import { deploymentList, deploymentView } from './adapters/vercel.js';
 import { supabaseStatus, projectList } from './adapters/supabase.js';
+import { codexRun, codexStatus } from './adapters/codex.js';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,7 @@ const ROOT_HELP = [
   'github <status|repo view|pr list|issue list> ...',
   'vercel deployment <list|view> ...',
   'supabase <status|projects list> ...',
+  'codex <status|run> ...',
   'help [command]',
 ];
 
@@ -27,6 +29,7 @@ const HELP = {
   github: ['github status', 'github repo view [--repo owner/name]', 'github pr list [--repo owner/name] [--limit N]', 'github issue list [--repo owner/name] [--limit N]'],
   vercel: ['vercel deployment list [project] [--limit N]', 'vercel deployment view <deployment-reference>'],
   supabase: ['supabase status [--workdir path]', 'supabase projects list [--limit N]'],
+  codex: ['codex status', 'codex run --prompt-file <path> --cwd <dir> [--timeout-ms N] [--effort low|medium|high] [--mode read-only]'],
   integrations: ['integrations list [--fields id,domain,transport,phase,status,capabilities]'],
   doctor: ['doctor [--format json]'],
 };
@@ -36,6 +39,11 @@ const GITHUB_OPERATIONS = Object.freeze({
   repoView,
   prList,
   issueList,
+});
+
+const CODEX_OPERATIONS = Object.freeze({
+  status: codexStatus,
+  run: codexRun,
 });
 
 function commandHelp(topic) { return HELP[topic] || ROOT_HELP; }
@@ -64,7 +72,7 @@ function rejectFlags(flags, allowed) {
   for (const name of Object.keys(flags)) if (!allowed.includes(name) && name !== 'format') throw invalid('invalid-flag', `--${name} is not valid for this command`);
 }
 
-async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS } = {}) {
+async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS, codex = CODEX_OPERATIONS } = {}) {
   if (flags.help || positionals[0] === 'help' || positionals[0] === '--help') {
     const topic = positionals[0] === 'help' ? positionals[1] : positionals[0];
     return { command: 'help', data: { usage: commandHelp(topic) }, meta: { empty: false }, help: [] };
@@ -158,6 +166,26 @@ async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS } = {})
     }
     throw invalid('unknown-command', 'Unknown Supabase command', { next: commandHelp('supabase') });
   }
+  if (domain === 'codex') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'codex status');
+      rejectFlags(flags, []);
+      return { command: 'codex status', ...(await codex.status()), help: ['codex run --prompt-file <path> --cwd <dir>'] };
+    }
+    if (resource === 'run') {
+      assertCount(positionals, 2, 2, 'codex run --prompt-file <path> --cwd <dir> [flags]');
+      rejectFlags(flags, ['prompt-file', 'cwd', 'timeout-ms', 'effort', 'mode']);
+      const result = await codex.run({
+        promptFile: flags['prompt-file'],
+        cwd: flags.cwd,
+        timeoutMs: positiveInt(flags['timeout-ms'], 'timeout-ms', 300_000, { max: 1_800_000 }),
+        effort: flags.effort || 'medium',
+        mode: flags.mode || 'read-only',
+      });
+      return { command: 'codex run', ...result, help: ['codex status'] };
+    }
+    throw invalid('unknown-command', 'Unknown Codex command', { next: commandHelp('codex') });
+  }
   throw invalid('unknown-command', 'Unknown command', { next: ROOT_HELP });
 }
 
@@ -182,11 +210,16 @@ function commandLabel(positionals) {
     if (positionals[1] === 'projects' && positionals[2] === 'list') return 'supabase projects list';
     return 'supabase';
   }
+  if (positionals[0] === 'codex') {
+    if (positionals[1] === 'status') return 'codex status';
+    if (positionals[1] === 'run') return 'codex run';
+    return 'codex';
+  }
   return 'unknown';
 }
 
 export async function execute(argv, options = {}) {
-  let command = 'unknown';
+  let command = commandLabel(argv);
   let format = 'compact';
   try {
     const parsed = parseArgs(argv);

@@ -5,6 +5,7 @@ export const integrations = Object.freeze([
   { id: 'notion', domain: 'knowledge', transport: 'ntn-cli', phase: 'planned', status: 'planned', capabilities: [{ resource: 'page', actions: ['search', 'read'], mutation: false }] },
   { id: 'vercel', domain: 'deployments', transport: 'vercel-cli', phase: 2, status: 'implemented', capabilities: [{ resource: 'deployment', actions: ['list', 'view'], mutation: false }] },
   { id: 'supabase', domain: 'database', transport: 'supabase-cli', phase: 3, status: 'implemented', capabilities: [{ resource: 'local-status', actions: ['view'], mutation: false }, { resource: 'project', actions: ['list'], mutation: false }] },
+  { id: 'codex', domain: 'agents', transport: 'codex-lean-wrapper', phase: 4, status: 'implemented', capabilities: [{ resource: 'authentication', actions: ['status'], mutation: false }, { resource: 'agent-run', actions: ['run'], mutation: false }] },
   { id: 'firecrawl', domain: 'web', transport: 'firecrawl-cli', phase: 'planned', status: 'planned', capabilities: [{ resource: 'page', actions: ['search', 'scrape'], mutation: false }] },
   { id: 'higgsfield', domain: 'media', transport: 'higgsfield-cli', phase: 'planned', status: 'planned', capabilities: [{ resource: 'generation', actions: ['list', 'view'], mutation: false }] },
   { id: 'stitch', domain: 'design', transport: 'mcp', phase: 'planned', status: 'host-bridge-required', capabilities: [{ resource: 'design', actions: ['list', 'view'], mutation: false }] },

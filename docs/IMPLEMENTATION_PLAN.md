@@ -21,6 +21,7 @@ This plan advances one read-only adapter at a time while preserving the dependen
 | Notion | `ntn` CLI; CLI owns auth | Narrow `ntn` adapter | Page search/read increment | Read-only; no page mutation | Offline argv/normalization tests, then user-approved authenticated smoke test | Remove routing and retain planned manifest |
 | Vercel | Vercel CLI or local secure wrapper; CLI owns auth | Implemented narrow Vercel CLI adapter | Maintain deployment list/view | Read-only; no deploy/promote/delete | Shared harness, offline fixtures, safe auth probe, authenticated list-to-view smoke | Remove Vercel routing and restore its manifest to planned |
 | Supabase | Official Supabase CLI; CLI owns auth | Implemented narrow Supabase CLI adapter | Maintain local status and hosted project list | Read-only; no init/start/reset/link/push or remote mutation | Shared harness, secret-whitelist fixtures, login classification, controlled local and authenticated remote smokes | Remove Supabase routing and restore its manifest to planned |
+| Codex | Global Codex CLI login; CLI owns auth | Implemented global lean wrapper adapter | Maintain status and bounded run | Read-only sandbox only; no tooling, full output, apply, or writable modes | Exact argv, path, bounds, redaction, login classification, router, doctor, and controlled read-only smoke tests | Remove Codex routing and restore its manifest to planned |
 | Firecrawl | Firecrawl CLI; CLI owns auth | Narrow Firecrawl CLI adapter | Search first, scrape second | Read-only retrieval; no crawl job mutation | Bounded-output fixtures, redaction checks, approved smoke test | Disable newest action independently |
 | Higgsfield | Higgsfield CLI; CLI owns auth | Narrow Higgsfield CLI adapter | Generation list/view metadata | Read-only; generation remains out of scope | Offline fixtures and approved smoke test without generation | Remove routing and retain planned manifest |
 | Stitch | MCP in host; host owns auth | Supported host bridge | Blocked: bridge contract first | Design list/view only | Mock bridge contract and approved host evidence | Disable bridge registration |
@@ -43,7 +44,7 @@ Browser work should prefer `chrome-devtools-axi` if it is later installed and ap
 3. Ship Vercel deployment list/view as one adapter increment.
 4. Ship Supabase local status and hosted project list as one adapter increment.
 5. Pass GitHub through the shared conformance harness and add only workflow-required reads.
-6. Integrate Codex through the lean wrapper with explicit cwd, prompt-file, timeout, and mode.
+6. Maintain Codex through the lean wrapper with explicit cwd, prompt-file, timeout, effort, and forced read-only mode.
 7. Ship Notion page search/read as one adapter increment.
 8. Ship Firecrawl search, then scrape as separate increments because scrape payload and output limits differ.
 9. Ship Higgsfield list/view metadata without generation.
@@ -62,7 +63,12 @@ Every manifest must match the schema, every declared implemented capability must
 
 ### Security
 
-Subprocesses keep `shell: false`, ignored stdin, fixed argv, timeouts, byte caps, bounded process-tree termination, and discarded raw provider errors. Executable detection uses only filesystem `PATH`/`PATHEXT` resolution and never executes a provider or reads auth. Files remain root-constrained, re-check opened paths, and bound default reads; a malicious process continuously rewriting the authorized tree remains an explicit residual local threat. Logs and error command labels exclude path, query, content, credentials, environment values, and raw provider payloads. Mutations remain blocked until a separately reviewed preview/`--apply`/idempotency contract exists.
+Subprocesses keep `shell: false`, ignored stdin, fixed argv, timeouts, byte caps, bounded process-tree termination, and discarded raw provider errors.
+Executable detection uses only filesystem `PATH`/`PATHEXT` resolution and never executes a provider or reads auth.
+Codex runs force the lean wrapper to use `-Sandbox read-only` and reject every writable or apply mode before provider invocation.
+Files remain root-constrained, re-check opened paths, and bound default reads; a malicious process continuously rewriting the authorized tree remains an explicit residual local threat.
+Logs and error command labels exclude path, query, content, credentials, environment values, and raw provider payloads.
+Mutations remain blocked until a separately reviewed preview/`--apply`/idempotency contract exists.
 
 ### Observability
 

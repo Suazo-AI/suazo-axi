@@ -18,8 +18,19 @@ Global output is compact AXI text by default. Add `--format json` anywhere. `hel
 | `vercel deployment view <deployment-reference>` | Return compact deployment details using the ID or hostname returned by list |
 | `supabase status [--workdir path]` | Return whitelisted local service endpoints without keys or database credentials |
 | `supabase projects list [--limit N]` | Return compact hosted project metadata for the logged-in CLI user |
+| `codex status` | Check Codex CLI login without spending a model run or exposing account text |
+| `codex run --prompt-file <path> --cwd <dir> [--timeout-ms N] [--effort low\|medium\|high] [--mode read-only]` | Run the global lean wrapper inside a forced read-only sandbox and return only its final text |
 
-Limits are positive integers. GitHub list limits are capped at 100 and filesystem limits at 1000. Repo names must be `owner/name` and cannot start with an option-shaped owner. `files list --full` returns the complete directory listing. Default file reads open a verified handle and consume only a bounded UTF-8 byte window; `files read --full` deliberately reads complete content and can use memory proportional to file size. Empty lists set `meta.empty: true` and return an explicit empty array.
+Limits are positive integers.
+GitHub list limits are capped at 100 and filesystem limits at 1000.
+Codex timeouts default to 300000 milliseconds and must be from 1000 through 1800000 milliseconds.
+Repo names must be `owner/name` and cannot start with an option-shaped owner.
+`files list --full` returns the complete directory listing.
+Default file reads open a verified handle and consume only a bounded UTF-8 byte window; `files read --full` deliberately reads complete content and can use memory proportional to file size.
+Empty lists set `meta.empty: true` and return an explicit empty array.
+
+`codex run` requires an existing prompt file and cwd, resolves both paths before invocation, never reads prompt contents, and never adds either path to output.
+The only accepted mode is `read-only`, and the adapter always passes it explicitly to the wrapper.
 
 No command accepts raw passthrough arguments. Provider calls use fixed argument arrays, a timeout, a combined output cap, and redacted structured failures. stdout contains only the result envelope; unexpected launcher diagnostics go to stderr.
 

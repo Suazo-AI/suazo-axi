@@ -1,0 +1,15 @@
+.firecrawl/
+.codex/
+graphify-out/
+node_modules/
+coverage/
+.nyc_output/
+.tmp-suazo-test-*/
+*.tmp
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+local-secrets.*

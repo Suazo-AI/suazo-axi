@@ -1,0 +1,28 @@
+{
+  "name": "suazo-axi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dependency-free AXI-first integration toolkit",
+  "type": "module",
+  "files": [
+    "bin/",
+    "src/",
+    "schemas/",
+    "docs/",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "suazo-axi": "bin/suazo-axi.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node bin/suazo-axi.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "supabase": "2.113.0"
+  }
+}

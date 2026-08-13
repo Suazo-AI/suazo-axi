@@ -51,14 +51,18 @@ async function terminateTree(child, closePromise) {
   await Promise.race([closePromise, delay(TERMINATE_GRACE_MS)]);
 }
 
-export function runProcess(file, args, { timeoutMs = 10_000, maxBytes = 1_000_000 } = {}) {
+export function runProcess(file, args, { timeoutMs = 10_000, maxBytes = 1_000_000, input } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(file, args, {
       shell: false,
       windowsHide: true,
       detached: process.platform !== 'win32',
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
     });
+    if (input !== undefined) {
+      child.stdin.on('error', () => { /* closed before the request was consumed */ });
+      child.stdin.end(input);
+    }
     const chunks = { stdout: [], stderr: [] };
     let bytes = 0;
     let settled = false;

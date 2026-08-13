@@ -16,7 +16,7 @@ This plan advances one read-only adapter at a time while preserving the dependen
 | Service | Current transport and auth owner | Preferred adapter/backend | Target increment | Read/mutation scope | Acceptance evidence | Rollback |
 |---|---|---|---|---|---|---|
 | Files | Node built-ins; OS permissions | Existing native adapter | Maintain Phase 1 | List/read/find only; no mutation | Offline traversal, symlink, bounds, empty-state, envelope tests | Remove new operation routing; retain current adapter |
-| GitHub | `gh`; GitHub CLI owns auth | `gh-axi` when approved/available, with `gh` fallback | Backend selection after conformance fixture | Status, repo view, PR/issue list; no mutation | Same normalized fixtures and envelopes through both backends; safe auth probe | Select `gh` fallback without moving credentials |
+| GitHub | `gh`; GitHub CLI owns auth | `gh-axi` when approved/available, with `gh` fallback | Maintain expanded read surface, then backend selection | Status, repo view, PR list/view/checks/reviews, issue list, and workflow-run list/view/failed-summary; no mutation or raw log retrieval | Offline argv, routing, normalization, bounds, redaction, and envelope tests; safe auth probe | Remove expanded routes independently or select `gh` fallback without moving credentials |
 | Outlook Email | Native Codex connector; host owns auth | Supported host bridge to native connector | Blocked: bridge contract first | Message list/read/search; no send/update/delete | Mock bridge conformance plus approved host integration evidence | Disable bridge registration; no auth export |
 | Notion | `ntn` CLI; CLI owns auth | Narrow `ntn` adapter | Page search/read increment | Read-only; no page mutation | Offline argv/normalization tests, then user-approved authenticated smoke test | Remove routing and retain planned manifest |
 | Vercel | Vercel CLI or local secure wrapper; CLI owns auth | Implemented narrow Vercel CLI adapter | Maintain deployment list/view | Read-only; no deploy/promote/delete | Shared harness, offline fixtures, safe auth probe, authenticated list-to-view smoke | Remove Vercel routing and restore its manifest to planned |
@@ -43,7 +43,7 @@ Browser work should prefer `chrome-devtools-axi` if it is later installed and ap
 2. Add a reusable adapter conformance harness covering envelopes, fixed argv, normalization, empty states, timeouts, output caps, and redaction.
 3. Ship Vercel deployment list/view as one adapter increment.
 4. Ship Supabase local status and hosted project list as one adapter increment.
-5. Pass GitHub through the shared conformance harness and add only workflow-required reads.
+5. Maintain GitHub pull request and workflow-run reads, including failed job/step metadata without raw workflow logs, and pass them through the shared conformance harness.
 6. Maintain Codex through the lean wrapper with explicit cwd, prompt-file, timeout, effort, and forced read-only mode.
 7. Ship Notion page search/read as one adapter increment.
 8. Ship Firecrawl search, then scrape as separate increments because scrape payload and output limits differ.

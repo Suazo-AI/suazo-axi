@@ -1,6 +1,6 @@
 import { invalid } from './errors.js';
 
-const VALUE_FLAGS = new Set(['format', 'fields', 'root', 'limit', 'max-chars', 'repo', 'workdir', 'prompt-file', 'cwd', 'timeout-ms', 'effort', 'mode']);
+const VALUE_FLAGS = new Set(['format', 'fields', 'root', 'limit', 'max-chars', 'repo', 'number', 'id', 'workdir', 'prompt-file', 'cwd', 'timeout-ms', 'effort', 'mode', 'graph', 'question', 'budget', 'from', 'to', 'node', 'depth']);
 const BOOL_FLAGS = new Set(['full', 'help']);
 
 export function parseArgs(argv) {
@@ -40,6 +40,16 @@ export function positiveInt(value, name, fallback, { max = 1000 } = {}) {
   if (!/^[1-9]\d*$/.test(value)) throw invalid('invalid-number', `--${name} must be a positive integer`);
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number > max) throw invalid('invalid-number', `--${name} must be at most ${max}`);
+  return number;
+}
+
+export function boundedInt(value, name, fallback, { min, max }) {
+  if (value === undefined) return fallback;
+  if (!/^(?:0|[1-9]\d*)$/.test(value)) throw invalid('invalid-number', `--${name} must be an integer from ${min} through ${max}`);
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < min || number > max) {
+    throw invalid('invalid-number', `--${name} must be an integer from ${min} through ${max}`);
+  }
   return number;
 }
 

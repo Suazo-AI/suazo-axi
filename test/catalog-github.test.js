@@ -20,6 +20,13 @@ test('catalog has unique ids and honest status categories', () => {
       { resource: 'agent-run', actions: ['run'], mutation: false },
     ],
   });
+  assert.deepEqual(integrations.find((item) => item.id === 'github').capabilities, [
+    { resource: 'authentication', actions: ['status'], mutation: false },
+    { resource: 'repository', actions: ['view'], mutation: false },
+    { resource: 'pull-request', actions: ['list', 'view', 'checks', 'reviews'], mutation: false },
+    { resource: 'issue', actions: ['list'], mutation: false },
+    { resource: 'workflow-run', actions: ['list', 'view', 'failed-summary'], mutation: false },
+  ]);
   assert.deepEqual(Object.keys(selectIntegrations(['id', 'status'])[0]), ['id', 'status']);
 });
 

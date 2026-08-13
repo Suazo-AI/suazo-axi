@@ -5,7 +5,7 @@ import { formatResult } from './core/format.js';
 import { integrations, defaultFields, catalogFields, selectIntegrations } from './catalog/integrations.js';
 import { listFiles, readFile, findFiles } from './adapters/files.js';
 import { doctor } from './adapters/doctor.js';
-import { githubStatus, repoView, prList, issueList } from './adapters/github.js';
+import { githubStatus, repoView, prList, prView, prChecks, prReviews, issueList, runList, runView, runFailed } from './adapters/github.js';
 import { deploymentList, deploymentView } from './adapters/vercel.js';
 import { supabaseStatus, projectList } from './adapters/supabase.js';
 import { codexRun, codexStatus } from './adapters/codex.js';
@@ -17,7 +17,7 @@ const ROOT_HELP = [
   'doctor',
   'integrations list [--fields id,domain,...]',
   'files <list|read|find> ...',
-  'github <status|repo view|pr list|issue list> ...',
+  'github <status|repo|pr|issue|run> ...',
   'vercel deployment <list|view> ...',
   'supabase <status|projects list> ...',
   'codex <status|run> ...',
@@ -26,7 +26,18 @@ const ROOT_HELP = [
 
 const HELP = {
   files: ['files list [path] [--root path] [--limit N] [--full]', 'files read <path> [--root path] [--max-chars N] [--full]', 'files find <query> [path] [--root path] [--limit N]'],
-  github: ['github status', 'github repo view [--repo owner/name]', 'github pr list [--repo owner/name] [--limit N]', 'github issue list [--repo owner/name] [--limit N]'],
+  github: [
+    'github status',
+    'github repo view [--repo owner/name]',
+    'github pr list [--repo owner/name] [--limit N]',
+    'github pr view --number N [--repo owner/name]',
+    'github pr checks --number N [--repo owner/name]',
+    'github pr reviews --number N [--repo owner/name] [--limit N]',
+    'github issue list [--repo owner/name] [--limit N]',
+    'github run list [--repo owner/name] [--limit N]',
+    'github run view --id N [--repo owner/name]',
+    'github run failed --id N [--repo owner/name]',
+  ],
   vercel: ['vercel deployment list [project] [--limit N]', 'vercel deployment view <deployment-reference>'],
   supabase: ['supabase status [--workdir path]', 'supabase projects list [--limit N]'],
   codex: ['codex status', 'codex run --prompt-file <path> --cwd <dir> [--timeout-ms N] [--effort low|medium|high] [--mode read-only]'],
@@ -38,7 +49,13 @@ const GITHUB_OPERATIONS = Object.freeze({
   status: githubStatus,
   repoView,
   prList,
+  prView,
+  prChecks,
+  prReviews,
   issueList,
+  runList,
+  runView,
+  runFailed,
 });
 
 const CODEX_OPERATIONS = Object.freeze({
@@ -70,6 +87,11 @@ function home() {
 
 function rejectFlags(flags, allowed) {
   for (const name of Object.keys(flags)) if (!allowed.includes(name) && name !== 'format') throw invalid('invalid-flag', `--${name} is not valid for this command`);
+}
+
+function requiredPositiveInt(flags, name) {
+  if (flags[name] === undefined) throw invalid('missing-required-flag', `--${name} is required`);
+  return positiveInt(flags[name], name, undefined, { max: Number.MAX_SAFE_INTEGER });
 }
 
 async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS, codex = CODEX_OPERATIONS } = {}) {
@@ -133,6 +155,36 @@ async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS, codex 
       const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
       const result = resource === 'pr' ? await github.prList(flags.repo, limit) : await github.issueList(flags.repo, limit);
       return { command: `github ${resource} list`, ...result, help: result.meta.empty ? [`No open ${resource === 'pr' ? 'pull requests' : 'issues'} found`] : [`github ${resource} list --limit ${Math.min(limit + 20, 100)}`] };
+    }
+    if (resource === 'pr' && ['view', 'checks', 'reviews'].includes(action)) {
+      assertCount(positionals, 3, 3, `github pr ${action} --number N [flags]`);
+      rejectFlags(flags, action === 'reviews' ? ['repo', 'number', 'limit'] : ['repo', 'number']);
+      const number = requiredPositiveInt(flags, 'number');
+      if (action === 'view') {
+        return { command: 'github pr view', ...(await github.prView(flags.repo, number)), help: ['github pr checks --number N', 'github pr reviews --number N'] };
+      }
+      if (action === 'checks') {
+        return { command: 'github pr checks', ...(await github.prChecks(flags.repo, number)), help: ['github pr reviews --number N'] };
+      }
+      const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
+      const result = await github.prReviews(flags.repo, number, limit);
+      return { command: 'github pr reviews', ...result, help: result.meta.empty ? ['No pull request reviews found'] : ['github pr checks --number N'] };
+    }
+    if (resource === 'run' && action === 'list') {
+      assertCount(positionals, 3, 3, 'github run list [--repo owner/name] [--limit N]');
+      rejectFlags(flags, ['repo', 'limit']);
+      const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
+      const result = await github.runList(flags.repo, limit);
+      return { command: 'github run list', ...result, help: result.meta.empty ? ['No workflow runs found'] : ['github run view --id N'] };
+    }
+    if (resource === 'run' && ['view', 'failed'].includes(action)) {
+      assertCount(positionals, 3, 3, `github run ${action} --id N [--repo owner/name]`);
+      rejectFlags(flags, ['repo', 'id']);
+      const runId = requiredPositiveInt(flags, 'id');
+      const result = action === 'view'
+        ? await github.runView(flags.repo, runId)
+        : await github.runFailed(flags.repo, runId);
+      return { command: `github run ${action}`, ...result, help: [action === 'view' ? 'github run failed --id N' : 'github run view --id N'] };
     }
     throw invalid('unknown-command', 'Unknown GitHub command', { next: commandHelp('github') });
   }
@@ -198,7 +250,9 @@ function commandLabel(positionals) {
   if (positionals[0] === 'github') {
     if (positionals[1] === 'status') return 'github status';
     if (positionals[1] === 'repo' && positionals[2] === 'view') return 'github repo view';
-    if (['pr', 'issue'].includes(positionals[1]) && positionals[2] === 'list') return `github ${positionals[1]} list`;
+    if (positionals[1] === 'pr' && ['list', 'view', 'checks', 'reviews'].includes(positionals[2])) return `github pr ${positionals[2]}`;
+    if (positionals[1] === 'issue' && positionals[2] === 'list') return 'github issue list';
+    if (positionals[1] === 'run' && ['list', 'view', 'failed'].includes(positionals[2])) return `github run ${positionals[2]}`;
     return 'github';
   }
   if (positionals[0] === 'vercel') {

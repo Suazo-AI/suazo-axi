@@ -2,7 +2,7 @@
 
 `suazo-axi` is a dependency-free Node.js ESM CLI that puts a compact, stable AXI-first interface over existing authenticated transports. It is a thin local broker: it neither stores credentials nor replaces provider backends.
 
-Implemented adapters cover local files with Node built-ins, GitHub through `gh`, Vercel deployment list/view, Supabase local status/project list, and read-only Codex runs through the global lean wrapper.
+Implemented adapters cover local files with Node built-ins, GitHub repository, pull request, issue, and workflow-run reads through `gh`, Vercel deployment list/view, Supabase local status/project list, and read-only Codex runs through the global lean wrapper.
 Static catalog statuses are durable lifecycle facts: `implemented`, `planned`, `host-bridge-required`, or `unconfigured`.
 Point-in-time readiness appears only in `doctor`.
 
@@ -15,6 +15,8 @@ node bin/suazo-axi.js
 node bin/suazo-axi.js integrations list --format json
 node bin/suazo-axi.js files list . --root . --limit 10
 node bin/suazo-axi.js github pr list --repo owner/name --limit 20
+node bin/suazo-axi.js github pr checks --repo owner/name --number 42
+node bin/suazo-axi.js github run failed --repo owner/name --id 123456789
 node bin/suazo-axi.js codex status
 node bin/suazo-axi.js codex run --prompt-file task.md --cwd . --mode read-only
 ```
@@ -33,4 +35,5 @@ Files are constrained to `--root`, symlink escapes and traversal are rejected, d
 Codex runs require existing prompt and workspace paths and always pass `-Sandbox read-only` to the approved lean wrapper.
 Provider commands use fixed argument arrays with no shell, timeouts, output caps, process-tree termination, and hidden Windows process windows.
 The broker never directly prints credentials, prompt files, provider diagnostics, or environment values.
+`github run failed` returns normalized failed job and step metadata, never raw workflow logs.
 A malicious local process concurrently rewriting the allowed filesystem tree is outside the complete cross-platform guarantee; see the threat model.

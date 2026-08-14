@@ -1,10 +1,14 @@
 .firecrawl/
 .codex/
 graphify-out/
+.verify/
 node_modules/
 coverage/
 .nyc_output/
 .tmp-suazo-test-*/
+# `*.tmp` does not match `.tmp-something.json`; smoke-test dumps land at the repo root
+# with that shape and were left untracked-but-not-ignored, one `git add -A` from a commit.
+.tmp-*
 *.tmp
 *.log
 .env

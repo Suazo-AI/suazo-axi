@@ -3,6 +3,11 @@
   "$id": "https://suazo-axi.local/schemas/result-envelope.schema.json",
   "title": "suazo-axi result envelope",
   "type": "object",
+  "$defs": {
+    "runtimeStatus": {
+      "enum": ["ready", "authentication-required", "unavailable", "degraded", "daemon-stopped", "detected", "not-detected", "host-bridge-required", "unconfigured"]
+    }
+  },
   "required": ["axi", "ok", "command", "data", "meta", "help"],
   "properties": {
     "axi": { "type": "string" },

@@ -51,7 +51,8 @@ export async function resolveVercelTransport({ resolver = resolveExecutable, pla
   if (platform === 'win32') {
     const secureShim = await resolver('vercel-secure');
     if (secureShim) {
-      const script = path.join(path.dirname(secureShim), 'Invoke-VercelSecure.ps1');
+      // Windows layout, so the join must be a Windows join on any host. See the note below.
+      const script = path.win32.join(path.win32.dirname(secureShim), 'Invoke-VercelSecure.ps1');
       const powershell = await resolver('powershell.exe') || await resolver('powershell');
       if (powershell && await fileExists(script)) {
         return {
@@ -66,7 +67,9 @@ export async function resolveVercelTransport({ resolver = resolveExecutable, pla
   const executable = await resolver('vercel');
   if (!executable) throw new AxiError('adapter-unavailable', 'Vercel CLI is unavailable');
   if (platform === 'win32' && /\.(?:cmd|bat)$/i.test(executable)) {
-    const entry = path.join(path.dirname(executable), 'node_modules', 'vercel', 'dist', 'vc.js');
+    // Windows shim layout, so the join must be a Windows join on any host: posix dirname of
+    // 'C:\\npm\\vercel.cmd' is '.', and the resolved entry would never match.
+    const entry = path.win32.join(path.win32.dirname(executable), 'node_modules', 'vercel', 'dist', 'vc.js');
     if (await fileExists(entry)) return { file: nodePath, prefixArgs: [entry], auth: 'vercel-cli' };
     throw new AxiError('adapter-unavailable', 'Vercel CLI launcher is unavailable');
   }

@@ -1,0 +1,51 @@
+﻿name: CI
+
+# Deliberately runs only the offline suite.
+#
+# `npm run verify` also drives scripts/verify-live.mjs, which exercises every adapter against the
+# real provider CLIs. That cannot run here: it needs an authenticated ntn, firecrawl and higgsfield
+# plus a live Docker daemon. In CI every check would skip, the verifier would exit 2, and the job
+# would go red for a reason that has nothing to do with the change. The live verifier is a local
+# gate before pushing, not a CI gate. Do not wire it in.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same ref makes the older run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the floor declared in package.json engines; 24 is what the tool actually runs on.
+        # Windows is not optional coverage here: the adapters resolve provider CLIs through
+        # Windows shim layouts, and that is the platform this tool is used from.
+        os: [ubuntu-latest, windows-latest]
+        node: ['20', '24']
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # --ignore-scripts skips the supabase devDependency postinstall, which downloads a platform
+      # binary the tests never touch: transport resolution is exercised through injected runners.
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Test
+        run: npm test

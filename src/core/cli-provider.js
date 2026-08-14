@@ -11,7 +11,7 @@ function safeProviderCode(output) {
   }
 }
 
-export async function runJsonCli({
+async function runCli({
   provider,
   file,
   prefixArgs = [],
@@ -19,21 +19,39 @@ export async function runJsonCli({
   timeoutMs = 15_000,
   maxBytes = 1_000_000,
   runner = runProcess,
+  allowedExitCodes = [0],
 }) {
   const result = await runner(file, [...prefixArgs, ...args], { timeoutMs, maxBytes });
-  if (result.code !== 0) {
+  if (allowedExitCodes !== null && !allowedExitCodes.includes(result.code)) {
     const providerCode = safeProviderCode(result.stdout);
     throw new AxiError(`${provider}-error`, `${provider} command failed`, {
       retryable: true,
       details: { provider, exitCode: result.code, ...(providerCode ? { providerCode } : {}) },
     });
   }
+  return result.stdout;
+}
+
+function parseJson(provider, output) {
   try {
-    return JSON.parse(result.stdout);
+    return JSON.parse(output);
   } catch {
     throw new AxiError('provider-invalid-response', `${provider} returned invalid JSON`, {
       retryable: true,
       details: { provider },
     });
   }
+}
+
+export async function runTextCli(options) {
+  return runCli(options);
+}
+
+export async function runJsonCliAllowingExitCode(options) {
+  const output = await runCli(options);
+  return parseJson(options.provider, output);
+}
+
+export async function runJsonCli(options) {
+  return runJsonCliAllowingExitCode({ ...options, allowedExitCodes: [0] });
 }

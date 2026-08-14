@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { AxiError } from '../src/core/errors.js';
 import { BRIDGE_VERSION, buildRequest, callBridge, describeBridge, parseResponse } from '../src/core/bridge.js';
 
-const MOCK = fileURLToPath(new URL('./mocks/bridge-mock.js', import.meta.url));
+const MOCK = fileURLToPath(new URL('../scripts/bridge-mock.mjs', import.meta.url));
 
 function mock(scenario) {
   return { file: process.execPath, prefixArgs: [MOCK, scenario], service: 'stitch' };
@@ -123,13 +123,33 @@ test('mock bridge failure scenarios map to sanitized AXI errors', async () => {
   }
 });
 
-test('bridge calls stay bounded by the output cap and timeout', async () => {
-  await assert.rejects(
-    () => callBridge({ ...mock('oversize'), resource: 'design', action: 'list' }),
-    (error) => error.code === 'provider-output-limit',
-  );
-  await assert.rejects(
-    () => callBridge({ ...mock('silent'), resource: 'design', action: 'list', timeoutMs: 300 }),
-    (error) => error.code === 'provider-timeout',
-  );
+// The bounds themselves belong to the subprocess helper and are covered in
+// process.test.js. What matters here is that callBridge passes them through and
+// lets the helper's errors surface unchanged rather than reframing them as
+// protocol failures. Injected runners keep that assertion free of real
+// subprocess termination, which the helper already owns.
+test('bridge calls forward the helper bounds and surface its errors unchanged', async () => {
+  let options;
+  await callBridge({
+    file: 'bridge-bin',
+    service: 'stitch',
+    resource: 'design',
+    action: 'list',
+    id: 'req-1',
+    timeoutMs: 1_234,
+    maxBytes: 4_096,
+    runner: async (file, args, received) => {
+      options = received;
+      return { code: 0, stdout: JSON.stringify({ bridge: BRIDGE_VERSION, id: 'req-1', ok: true, items: [] }), stderr: '' };
+    },
+  });
+  assert.equal(options.timeoutMs, 1_234);
+  assert.equal(options.maxBytes, 4_096);
+
+  for (const code of ['provider-timeout', 'provider-output-limit']) {
+    await assert.rejects(
+      () => callBridge({ file: 'bridge-bin', service: 'stitch', resource: 'design', action: 'list', runner: async () => { throw new AxiError(code, 'bounded'); } }),
+      (error) => error.code === code,
+    );
+  }
 });

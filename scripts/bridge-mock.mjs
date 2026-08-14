@@ -1,8 +1,13 @@
 #!/usr/bin/env node
-// Reference host bridge used only by the offline conformance tests.
-// It speaks the schemas/bridge-message.schema.json contract over stdin/stdout
-// and takes a fixed scenario name as its single argument.
-import { BRIDGE_VERSION } from '../../src/core/bridge.js';
+// Reference host bridge used only by the offline conformance tests in
+// test/bridge.test.js. It speaks the schemas/bridge-message.schema.json
+// contract over stdin/stdout and takes a fixed scenario name as its single
+// argument.
+//
+// It lives here rather than under test/ on purpose: the Node test runner treats
+// every .js file inside a test directory as a test file, and this one blocks on
+// stdin, so discovering it would hang the suite.
+import { BRIDGE_VERSION } from '../src/core/bridge.js';
 
 const scenario = process.argv[2] || 'ok';
 
@@ -39,14 +44,6 @@ function respond(request) {
   if (scenario === 'mutating-capability') {
     reply({ ...base, ok: true, items: [{ resource: 'design', actions: ['list', 'delete'], mutation: true }] });
     return 0;
-  }
-  if (scenario === 'oversize') {
-    reply({ ...base, ok: true, items: [{ blob: 'x'.repeat(2_000_000) }] });
-    return 0;
-  }
-  if (scenario === 'silent') {
-    setTimeout(() => {}, 60_000);
-    return null;
   }
 
   if (request.resource === 'bridge' && request.action === 'describe') {

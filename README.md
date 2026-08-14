@@ -33,6 +33,22 @@ Compact AXI text is the default. It is an intentionally small deterministic enco
 
 See [commands](docs/COMMANDS.md), [architecture](docs/ARCHITECTURE.md), [authentication](docs/AUTHENTICATION.md), and the [production implementation plan](docs/IMPLEMENTATION_PLAN.md). Run tests with `npm.cmd test` on Windows or `npm test` elsewhere.
 
+## Verification
+
+`npm test` runs the offline suite. It proves the normalizers agree with their fixtures, which is not the same as proving the fixtures agree with the providers: a fixture that encodes the same wrong field name as the code is green against a fiction. Five normalizers shipped that way once.
+
+`npm run verify:live` closes that gap by driving the real provider CLIs. It refuses to let coverage rot: every adapter in `src/adapters` must be declared in the script, and an adapter that never passes a check fails the run.
+
+| Exit | Meaning |
+|---|---|
+| `0` | every adapter exercised, every required check passed |
+| `1` | a required check failed, or an adapter has no coverage |
+| `2` | everything required passed, but an optional check was skipped |
+
+Optional checks are the ones with a precondition a given machine may genuinely lack: no knowledge graph in the checkout, no local Supabase project, Docker engine not running. They are printed and counted rather than hidden, so `2` means environment-limited, not broken. `codex run` is never exercised: it spawns a billed agent, and the summary says so on every run.
+
+CI runs the offline suite only. The live verifier needs authenticated CLIs and a running Docker daemon; in CI every check would skip and the job would go red for a reason unrelated to the change.
+
 ## Safety
 
 Implemented adapters are read-only.

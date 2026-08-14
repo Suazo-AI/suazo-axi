@@ -1,0 +1,15 @@
+# Normalize line endings so a checkout on Windows cannot change file content.
+# Without this, git rematerializes files with CRLF on Windows and the bytes on disk stop
+# matching the bytes in the blob. Anything that hashes or byte-compares a working-tree file
+# then fails for a reason that has nothing to do with the change under review.
+* text=auto eol=lf
+
+# Binary: never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.exe binary

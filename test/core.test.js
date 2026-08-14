@@ -27,6 +27,9 @@ test('argument parser validates flags and integers', () => {
   assert.equal(parseArgs(['files', 'list', '--root=C:\\safe=a=b']).flags.root, 'C:\\safe=a=b');
   assert.equal(parseArgs(['codex', 'run', '--prompt-file=C:\\safe path\\prompt=a=b.md']).flags['prompt-file'], 'C:\\safe path\\prompt=a=b.md');
   assert.deepEqual(parseArgs(['github', 'pr', 'view', '--number', '7', '--id', '42']).flags, { number: '7', id: '42' });
+  assert.deepEqual(parseArgs(['firecrawl', 'map', '--url', 'https://example.com', '--query', 'safe', '--kind', 'image']).flags, {
+    url: 'https://example.com', query: 'safe', kind: 'image',
+  });
   assert.equal(positiveInt('5', 'limit', 20), 5);
   assert.throws(() => positiveInt('0', 'limit', 20), /positive integer/);
   assert.throws(() => parseArgs(['--mystery']), /Unknown flag/);
@@ -56,4 +59,69 @@ test('structured errors use a stable command label without sensitive arguments',
   const parsed = JSON.parse(result.output);
   assert.equal(parsed.command, 'files read');
   assert.ok(!result.output.includes(secret));
+});
+
+test('new read-only provider routes expose exact stable command labels', async () => {
+  const calls = [];
+  const notion = {
+    status: async () => ({ data: { available: true, authenticated: true }, meta: { empty: false } }),
+    search: async (...args) => { calls.push(['notion search', ...args]); return { data: { items: [] }, meta: { empty: true } }; },
+    pageView: async (...args) => { calls.push(['notion page view', ...args]); return { data: { id: args[0] }, meta: { empty: false } }; },
+  };
+  const firecrawl = {
+    status: async () => ({ data: { available: true, authenticated: true }, meta: { empty: false } }),
+    search: async (...args) => { calls.push(['firecrawl search', ...args]); return { data: { items: [] }, meta: { empty: true } }; },
+    map: async (...args) => { calls.push(['firecrawl map', ...args]); return { data: { items: [] }, meta: { empty: true } }; },
+  };
+  const higgsfield = {
+    status: async () => ({ data: { available: true, authenticated: true }, meta: { empty: false } }),
+    modelList: async (...args) => { calls.push(['higgsfield model list', ...args]); return { data: { items: [] }, meta: { empty: true } }; },
+    generationList: async (...args) => { calls.push(['higgsfield generation list', ...args]); return { data: { items: [] }, meta: { empty: true } }; },
+    generationView: async (...args) => { calls.push(['higgsfield generation view', ...args]); return { data: { id: args[0] }, meta: { empty: false } }; },
+  };
+  const options = { notion, firecrawl, higgsfield };
+  const cases = [
+    [['notion', 'search', '--query', 'roadmap', '--limit', '4'], 'notion search'],
+    [['notion', 'page', 'view', '--id', '12345678123412341234123456789abc'], 'notion page view'],
+    [['firecrawl', 'search', '--query', 'axi', '--limit', '5'], 'firecrawl search'],
+    [['firecrawl', 'map', '--url', 'https://example.com', '--limit', '6'], 'firecrawl map'],
+    [['higgsfield', 'model', 'list', '--kind', 'video', '--limit', '7'], 'higgsfield model list'],
+    [['higgsfield', 'generation', 'list', '--limit', '8'], 'higgsfield generation list'],
+    [['higgsfield', 'generation', 'view', '--id', 'job_123'], 'higgsfield generation view'],
+  ];
+  for (const [argv, command] of cases) {
+    const parsed = JSON.parse((await execute([...argv, '--format', 'json'], options)).output);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.command, command);
+  }
+  assert.deepEqual(calls, [
+    ['notion search', 'roadmap', 4],
+    ['notion page view', '12345678123412341234123456789abc'],
+    ['firecrawl search', 'axi', 5],
+    ['firecrawl map', 'https://example.com', 6],
+    ['higgsfield model list', 'video', 7],
+    ['higgsfield generation list', 8],
+    ['higgsfield generation view', 'job_123'],
+  ]);
+});
+
+test('new routes reject missing flags and keep content out of error command labels', async () => {
+  for (const argv of [
+    ['notion', 'search'],
+    ['notion', 'page', 'view'],
+    ['firecrawl', 'search'],
+    ['firecrawl', 'map'],
+    ['higgsfield', 'generation', 'view'],
+  ]) {
+    const result = await execute([...argv, '--format', 'json']);
+    const parsed = JSON.parse(result.output);
+    assert.equal(result.exitCode, 2);
+    assert.equal(parsed.error.code, 'missing-required-flag');
+    assert.equal(parsed.command, argv.join(' '));
+  }
+  const secret = 'sensitive-search-query-7391';
+  const result = await execute(['notion', 'search', secret, '--query', secret, '--format', 'json']);
+  assert.equal(result.exitCode, 2);
+  assert.equal(result.output.includes(secret), false);
+  assert.equal(JSON.parse(result.output).command, 'notion search');
 });

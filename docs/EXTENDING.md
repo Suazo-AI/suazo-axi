@@ -15,4 +15,6 @@ Adapters must:
 
 Add contextual help near the dispatcher, update both schemas if the stable contract changes, and document status as `implemented`, `planned`, `host-bridge-required`, or `unconfigured`. Runtime executable detection belongs only in `doctor`; never turn a detection snapshot into a lifecycle claim.
 
+Runtime doctor status is distinct from durable lifecycle status. Its declared vocabulary is `ready`, `authentication-required`, `unavailable`, `degraded`, `daemon-stopped`, `detected`, `not-detected`, `host-bridge-required`, and `unconfigured`; `daemon-stopped` is reserved for an available CLI whose local daemon explicitly reports that it is stopped.
+
 Mutating capabilities must remain false until the CLI supports a previewable plan, explicit `--apply`, and idempotency keys. Version the capability and preserve a read-only rollback path.

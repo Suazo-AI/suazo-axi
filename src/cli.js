@@ -1,4 +1,4 @@
-import { parseArgs, positiveInt, assertCount } from './core/args.js';
+import { parseArgs, positiveInt, boundedInt, assertCount } from './core/args.js';
 import { AxiError, invalid } from './core/errors.js';
 import { success, failure } from './core/envelope.js';
 import { formatResult } from './core/format.js';
@@ -9,6 +9,11 @@ import { githubStatus, repoView, prList, prView, prChecks, prReviews, issueList,
 import { deploymentList, deploymentView } from './adapters/vercel.js';
 import { supabaseStatus, projectList } from './adapters/supabase.js';
 import { codexRun, codexStatus } from './adapters/codex.js';
+import { notionPageView, notionSearch, notionStatus } from './adapters/notion.js';
+import { firecrawlMap, firecrawlSearch, firecrawlStatus } from './adapters/firecrawl.js';
+import { higgsfieldGenerationList, higgsfieldGenerationView, higgsfieldModelList, higgsfieldStatus } from './adapters/higgsfield.js';
+import { composeList, containerList, containerView, dockerStatus, imageList } from './adapters/docker.js';
+import { knowledgeAffected, knowledgePath, knowledgeQuery, knowledgeStatus, validateKnowledgeText } from './adapters/knowledge.js';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -17,9 +22,14 @@ const ROOT_HELP = [
   'doctor',
   'integrations list [--fields id,domain,...]',
   'files <list|read|find> ...',
+  'knowledge <status|query|path|affected> ...',
   'github <status|repo|pr|issue|run> ...',
   'vercel deployment <list|view> ...',
   'supabase <status|projects list> ...',
+  'notion <status|search|page view> ...',
+  'firecrawl <status|search|map> ...',
+  'higgsfield <status|model list|generation list|generation view> ...',
+  'docker <status|container list|container view|image list|compose list> ...',
   'codex <status|run> ...',
   'help [command]',
 ];
@@ -40,7 +50,12 @@ const HELP = {
   ],
   vercel: ['vercel deployment list [project] [--limit N]', 'vercel deployment view <deployment-reference>'],
   supabase: ['supabase status [--workdir path]', 'supabase projects list [--limit N]'],
+  notion: ['notion status', 'notion search --query <q> [--limit N]', 'notion page view --id <uuid>'],
+  firecrawl: ['firecrawl status', 'firecrawl search --query <q> [--limit N]', 'firecrawl map --url <u> [--limit N]'],
+  higgsfield: ['higgsfield status', 'higgsfield model list [--kind image|video|audio|text] [--limit N]', 'higgsfield generation list [--limit N]', 'higgsfield generation view --id <id>'],
+  docker: ['docker status', 'docker container list [--all] [--limit N]', 'docker container view --id <id>', 'docker image list [--limit N]', 'docker compose list'],
   codex: ['codex status', 'codex run --prompt-file <path> --cwd <dir> [--timeout-ms N] [--effort low|medium|high] [--mode read-only]'],
+  knowledge: ['knowledge status [--graph <graph.json>]', 'knowledge query --question <text> [--graph <graph.json>] [--budget N]', 'knowledge path --from <node> --to <node> [--graph <graph.json>]', 'knowledge affected --node <node> [--graph <graph.json>] [--depth N]'],
   integrations: ['integrations list [--fields id,domain,transport,phase,status,capabilities]'],
   doctor: ['doctor [--format json]'],
 };
@@ -61,6 +76,30 @@ const GITHUB_OPERATIONS = Object.freeze({
 const CODEX_OPERATIONS = Object.freeze({
   status: codexStatus,
   run: codexRun,
+});
+
+const NOTION_OPERATIONS = Object.freeze({ status: notionStatus, search: notionSearch, pageView: notionPageView });
+const FIRECRAWL_OPERATIONS = Object.freeze({ status: firecrawlStatus, search: firecrawlSearch, map: firecrawlMap });
+const HIGGSFIELD_OPERATIONS = Object.freeze({
+  status: higgsfieldStatus,
+  modelList: higgsfieldModelList,
+  generationList: higgsfieldGenerationList,
+  generationView: higgsfieldGenerationView,
+});
+
+const DOCKER_OPERATIONS = Object.freeze({
+  status: dockerStatus,
+  containerList,
+  containerView,
+  imageList,
+  composeList,
+});
+
+const KNOWLEDGE_OPERATIONS = Object.freeze({
+  status: knowledgeStatus,
+  query: knowledgeQuery,
+  path: knowledgePath,
+  affected: knowledgeAffected,
 });
 
 function commandHelp(topic) { return HELP[topic] || ROOT_HELP; }
@@ -94,7 +133,20 @@ function requiredPositiveInt(flags, name) {
   return positiveInt(flags[name], name, undefined, { max: Number.MAX_SAFE_INTEGER });
 }
 
-async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS, codex = CODEX_OPERATIONS } = {}) {
+function requiredFlag(flags, name) {
+  if (flags[name] === undefined) throw invalid('missing-required-flag', `--${name} is required`);
+  return flags[name];
+}
+
+async function dispatch(positionals, flags, {
+  github = GITHUB_OPERATIONS,
+  codex = CODEX_OPERATIONS,
+  knowledge = KNOWLEDGE_OPERATIONS,
+  notion = NOTION_OPERATIONS,
+  firecrawl = FIRECRAWL_OPERATIONS,
+  higgsfield = HIGGSFIELD_OPERATIONS,
+  docker = DOCKER_OPERATIONS,
+} = {}) {
   if (flags.help || positionals[0] === 'help' || positionals[0] === '--help') {
     const topic = positionals[0] === 'help' ? positionals[1] : positionals[0];
     return { command: 'help', data: { usage: commandHelp(topic) }, meta: { empty: false }, help: [] };
@@ -137,6 +189,35 @@ async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS, codex 
       return { command: 'files find', ...result, help: result.meta.empty ? ['Try a shorter query or a broader path'] : ['files read <path>'] };
     }
     throw invalid('unknown-command', 'Unknown files command', { next: commandHelp('files') });
+  }
+  if (domain === 'knowledge') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'knowledge status [--graph <graph.json>]');
+      rejectFlags(flags, ['graph']);
+      return { command: 'knowledge status', ...(await knowledge.status(flags.graph)), help: ['knowledge query --question <text>'] };
+    }
+    if (resource === 'query') {
+      assertCount(positionals, 2, 2, 'knowledge query --question <text> [flags]');
+      rejectFlags(flags, ['question', 'graph', 'budget']);
+      validateKnowledgeText(flags.question, 'question');
+      const budget = boundedInt(flags.budget, 'budget', 300, { min: 50, max: 2000 });
+      return { command: 'knowledge query', ...(await knowledge.query(flags.question, { graph: flags.graph, budget })), help: ['knowledge path --from <node> --to <node>'] };
+    }
+    if (resource === 'path') {
+      assertCount(positionals, 2, 2, 'knowledge path --from <node> --to <node> [flags]');
+      rejectFlags(flags, ['from', 'to', 'graph']);
+      validateKnowledgeText(flags.from, 'from');
+      validateKnowledgeText(flags.to, 'to');
+      return { command: 'knowledge path', ...(await knowledge.path(flags.from, flags.to, { graph: flags.graph })), help: ['knowledge affected --node <node>'] };
+    }
+    if (resource === 'affected') {
+      assertCount(positionals, 2, 2, 'knowledge affected --node <node> [flags]');
+      rejectFlags(flags, ['node', 'graph', 'depth']);
+      validateKnowledgeText(flags.node, 'node');
+      const depth = boundedInt(flags.depth, 'depth', 2, { min: 1, max: 6 });
+      return { command: 'knowledge affected', ...(await knowledge.affected(flags.node, { graph: flags.graph, depth })), help: ['knowledge query --question <text>'] };
+    }
+    throw invalid('unknown-command', 'Unknown knowledge command', { next: commandHelp('knowledge') });
   }
   if (domain === 'github') {
     if (resource === 'status') {
@@ -218,6 +299,108 @@ async function dispatch(positionals, flags, { github = GITHUB_OPERATIONS, codex 
     }
     throw invalid('unknown-command', 'Unknown Supabase command', { next: commandHelp('supabase') });
   }
+  if (domain === 'notion') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'notion status');
+      rejectFlags(flags, []);
+      return { command: 'notion status', ...(await notion.status()), help: ['notion search --query <q>'] };
+    }
+    if (resource === 'search') {
+      assertCount(positionals, 2, 2, 'notion search --query <q> [--limit N]');
+      rejectFlags(flags, ['query', 'limit']);
+      const limit = positiveInt(flags.limit, 'limit', 10, { max: 100 });
+      const result = await notion.search(requiredFlag(flags, 'query'), limit);
+      return { command: 'notion search', ...result, help: result.meta.empty ? ['No Notion pages found'] : ['notion page view --id <uuid>'] };
+    }
+    if (resource === 'page' && action === 'view') {
+      assertCount(positionals, 3, 3, 'notion page view --id <uuid>');
+      rejectFlags(flags, ['id']);
+      return { command: 'notion page view', ...(await notion.pageView(requiredFlag(flags, 'id'))), help: ['notion search --query <q>'] };
+    }
+    throw invalid('unknown-command', 'Unknown Notion command', { next: commandHelp('notion') });
+  }
+  if (domain === 'firecrawl') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'firecrawl status');
+      rejectFlags(flags, []);
+      return { command: 'firecrawl status', ...(await firecrawl.status()), help: ['firecrawl search --query <q>'] };
+    }
+    if (resource === 'search') {
+      assertCount(positionals, 2, 2, 'firecrawl search --query <q> [--limit N]');
+      rejectFlags(flags, ['query', 'limit']);
+      const limit = positiveInt(flags.limit, 'limit', 10, { max: 100 });
+      const result = await firecrawl.search(requiredFlag(flags, 'query'), limit);
+      return { command: 'firecrawl search', ...result, help: result.meta.empty ? ['No Firecrawl results found'] : ['firecrawl map --url <u>'] };
+    }
+    if (resource === 'map') {
+      assertCount(positionals, 2, 2, 'firecrawl map --url <u> [--limit N]');
+      rejectFlags(flags, ['url', 'limit']);
+      const limit = positiveInt(flags.limit, 'limit', 100, { max: 100 });
+      const result = await firecrawl.map(requiredFlag(flags, 'url'), limit);
+      return { command: 'firecrawl map', ...result, help: result.meta.empty ? ['No mapped URLs found'] : ['firecrawl search --query <q>'] };
+    }
+    throw invalid('unknown-command', 'Unknown Firecrawl command', { next: commandHelp('firecrawl') });
+  }
+  if (domain === 'higgsfield') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'higgsfield status');
+      rejectFlags(flags, []);
+      return { command: 'higgsfield status', ...(await higgsfield.status()), help: ['higgsfield model list'] };
+    }
+    if (resource === 'model' && action === 'list') {
+      assertCount(positionals, 3, 3, 'higgsfield model list [--kind image|video|audio|text] [--limit N]');
+      rejectFlags(flags, ['kind', 'limit']);
+      const limit = positiveInt(flags.limit, 'limit', 10, { max: 100 });
+      const result = await higgsfield.modelList(flags.kind, limit);
+      return { command: 'higgsfield model list', ...result, help: ['higgsfield generation list'] };
+    }
+    if (resource === 'generation' && action === 'list') {
+      assertCount(positionals, 3, 3, 'higgsfield generation list [--limit N]');
+      rejectFlags(flags, ['limit']);
+      const limit = positiveInt(flags.limit, 'limit', 10, { max: 100 });
+      const result = await higgsfield.generationList(limit);
+      return { command: 'higgsfield generation list', ...result, help: result.meta.empty ? ['No Higgsfield generations found'] : ['higgsfield generation view --id <id>'] };
+    }
+    if (resource === 'generation' && action === 'view') {
+      assertCount(positionals, 3, 3, 'higgsfield generation view --id <id>');
+      rejectFlags(flags, ['id']);
+      return { command: 'higgsfield generation view', ...(await higgsfield.generationView(requiredFlag(flags, 'id'))), help: ['higgsfield generation list'] };
+    }
+    throw invalid('unknown-command', 'Unknown Higgsfield command', { next: commandHelp('higgsfield') });
+  }
+  if (domain === 'docker') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'docker status');
+      rejectFlags(flags, []);
+      return { command: 'docker status', ...(await docker.status()), help: ['docker container list --all'] };
+    }
+    if (resource === 'container' && action === 'list') {
+      assertCount(positionals, 3, 3, 'docker container list [--all] [--limit N]');
+      rejectFlags(flags, ['all', 'limit']);
+      const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
+      const result = await docker.containerList({ all: Boolean(flags.all), limit });
+      return { command: 'docker container list', ...result, help: result.meta.empty ? ['No containers found'] : ['docker container view --id <id>'] };
+    }
+    if (resource === 'container' && action === 'view') {
+      assertCount(positionals, 3, 3, 'docker container view --id <id>');
+      rejectFlags(flags, ['id']);
+      return { command: 'docker container view', ...(await docker.containerView(requiredFlag(flags, 'id'))), help: ['docker container list --all'] };
+    }
+    if (resource === 'image' && action === 'list') {
+      assertCount(positionals, 3, 3, 'docker image list [--limit N]');
+      rejectFlags(flags, ['limit']);
+      const limit = positiveInt(flags.limit, 'limit', 20, { max: 100 });
+      const result = await docker.imageList(limit);
+      return { command: 'docker image list', ...result, help: result.meta.empty ? ['No images found'] : ['docker container list --all'] };
+    }
+    if (resource === 'compose' && action === 'list') {
+      assertCount(positionals, 3, 3, 'docker compose list');
+      rejectFlags(flags, []);
+      const result = await docker.composeList();
+      return { command: 'docker compose list', ...result, help: result.meta.empty ? ['No Compose projects found'] : ['docker container list --all'] };
+    }
+    throw invalid('unknown-command', 'Unknown Docker command', { next: commandHelp('docker') });
+  }
   if (domain === 'codex') {
     if (resource === 'status') {
       assertCount(positionals, 2, 2, 'codex status');
@@ -247,6 +430,7 @@ function commandLabel(positionals) {
   if (positionals[0] === 'doctor') return 'doctor';
   if (positionals[0] === 'integrations') return positionals[1] === 'list' ? 'integrations list' : 'integrations';
   if (positionals[0] === 'files') return ['list', 'read', 'find'].includes(positionals[1]) ? `files ${positionals[1]}` : 'files';
+  if (positionals[0] === 'knowledge') return ['status', 'query', 'path', 'affected'].includes(positionals[1]) ? `knowledge ${positionals[1]}` : 'knowledge';
   if (positionals[0] === 'github') {
     if (positionals[1] === 'status') return 'github status';
     if (positionals[1] === 'repo' && positionals[2] === 'view') return 'github repo view';
@@ -263,6 +447,31 @@ function commandLabel(positionals) {
     if (positionals[1] === 'status') return 'supabase status';
     if (positionals[1] === 'projects' && positionals[2] === 'list') return 'supabase projects list';
     return 'supabase';
+  }
+  if (positionals[0] === 'notion') {
+    if (positionals[1] === 'status') return 'notion status';
+    if (positionals[1] === 'search') return 'notion search';
+    if (positionals[1] === 'page' && positionals[2] === 'view') return 'notion page view';
+    return 'notion';
+  }
+  if (positionals[0] === 'firecrawl') {
+    if (positionals[1] === 'status') return 'firecrawl status';
+    if (positionals[1] === 'search') return 'firecrawl search';
+    if (positionals[1] === 'map') return 'firecrawl map';
+    return 'firecrawl';
+  }
+  if (positionals[0] === 'higgsfield') {
+    if (positionals[1] === 'status') return 'higgsfield status';
+    if (positionals[1] === 'model' && positionals[2] === 'list') return 'higgsfield model list';
+    if (positionals[1] === 'generation' && ['list', 'view'].includes(positionals[2])) return `higgsfield generation ${positionals[2]}`;
+    return 'higgsfield';
+  }
+  if (positionals[0] === 'docker') {
+    if (positionals[1] === 'status') return 'docker status';
+    if (positionals[1] === 'container' && ['list', 'view'].includes(positionals[2])) return `docker container ${positionals[2]}`;
+    if (positionals[1] === 'image' && positionals[2] === 'list') return 'docker image list';
+    if (positionals[1] === 'compose' && positionals[2] === 'list') return 'docker compose list';
+    return 'docker';
   }
   if (positionals[0] === 'codex') {
     if (positionals[1] === 'status') return 'codex status';

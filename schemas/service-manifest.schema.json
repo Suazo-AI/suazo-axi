@@ -3,13 +3,21 @@
   "$id": "https://suazo-axi.local/schemas/service-manifest.schema.json",
   "title": "suazo-axi service manifest",
   "type": "object",
+  "$defs": {
+    "lifecycleStatus": {
+      "enum": ["implemented", "planned", "host-bridge-required", "unconfigured"]
+    },
+    "runtimeStatus": {
+      "enum": ["ready", "authentication-required", "unavailable", "degraded", "daemon-stopped", "detected", "not-detected", "host-bridge-required", "unconfigured"]
+    }
+  },
   "required": ["id", "domain", "transport", "phase", "status", "capabilities"],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "domain": { "type": "string" },
     "transport": { "type": "string" },
     "phase": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "enum": ["planned", "future"] }] },
-    "status": { "enum": ["implemented", "planned", "host-bridge-required", "unconfigured"] },
+    "status": { "$ref": "#/$defs/lifecycleStatus" },
     "capabilities": {
       "type": "array",
       "minItems": 1,

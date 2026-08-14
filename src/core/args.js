@@ -1,7 +1,7 @@
 import { invalid } from './errors.js';
 
-const VALUE_FLAGS = new Set(['format', 'fields', 'root', 'limit', 'max-chars', 'repo', 'number', 'id', 'workdir', 'prompt-file', 'cwd', 'timeout-ms', 'effort', 'mode', 'graph', 'question', 'budget', 'from', 'to', 'node', 'depth']);
-const BOOL_FLAGS = new Set(['full', 'help']);
+const VALUE_FLAGS = new Set(['format', 'fields', 'root', 'limit', 'max-chars', 'repo', 'number', 'id', 'workdir', 'prompt-file', 'cwd', 'timeout-ms', 'effort', 'mode', 'graph', 'question', 'budget', 'from', 'to', 'node', 'depth', 'query', 'url', 'kind']);
+const BOOL_FLAGS = new Set(['full', 'all', 'help']);
 
 export function parseArgs(argv) {
   const positionals = [];

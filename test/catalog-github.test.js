@@ -9,6 +9,41 @@ test('catalog has unique ids and honest status categories', () => {
   assert.ok(integrations.every((item) => ['implemented', 'planned', 'host-bridge-required', 'unconfigured'].includes(item.status)));
   assert.equal(integrations.find((item) => item.id === 'calendar').status, 'unconfigured');
   assert.equal(integrations.find((item) => item.id === 'outlook-email').status, 'host-bridge-required');
+  assert.deepEqual(integrations.find((item) => item.id === 'notion'), {
+    id: 'notion', domain: 'knowledge', transport: 'ntn-cli', phase: 6, status: 'implemented',
+    capabilities: [
+      { resource: 'authentication', actions: ['status'], mutation: false },
+      { resource: 'page', actions: ['search', 'view'], mutation: false },
+    ],
+  });
+  assert.deepEqual(integrations.find((item) => item.id === 'firecrawl'), {
+    id: 'firecrawl', domain: 'web', transport: 'firecrawl-cli', phase: 7, status: 'implemented',
+    capabilities: [
+      { resource: 'authentication', actions: ['status'], mutation: false },
+      { resource: 'web', actions: ['search', 'map'], mutation: false },
+    ],
+  });
+  assert.deepEqual(integrations.find((item) => item.id === 'higgsfield'), {
+    id: 'higgsfield', domain: 'media', transport: 'higgsfield-cli', phase: 8, status: 'implemented',
+    capabilities: [
+      { resource: 'authentication', actions: ['status'], mutation: false },
+      { resource: 'model', actions: ['list'], mutation: false },
+      { resource: 'generation', actions: ['list', 'view'], mutation: false },
+    ],
+  });
+  assert.deepEqual(integrations.find((item) => item.id === 'docker'), {
+    id: 'docker', domain: 'containers', transport: 'docker-cli', phase: 9, status: 'implemented',
+    capabilities: [
+      { resource: 'daemon', actions: ['status'], mutation: false },
+      { resource: 'container', actions: ['list', 'view'], mutation: false },
+      { resource: 'image', actions: ['list'], mutation: false },
+      { resource: 'compose-project', actions: ['list'], mutation: false },
+    ],
+  });
+  assert.deepEqual(integrations.find((item) => item.id === 'hermes'), {
+    id: 'hermes', domain: 'agents', transport: 'hermes-cli', phase: 'planned', status: 'planned',
+    capabilities: [{ resource: 'agent-run', actions: ['list', 'view'], mutation: false }],
+  });
   assert.deepEqual(integrations.find((item) => item.id === 'codex'), {
     id: 'codex',
     domain: 'agents',
@@ -32,7 +67,7 @@ test('catalog has unique ids and honest status categories', () => {
 
 test('catalog aligns with manifest required fields and capability shape', async () => {
   const schema = JSON.parse(await fs.readFile(new URL('../schemas/service-manifest.schema.json', import.meta.url), 'utf8'));
-  const statuses = schema.properties.status.enum;
+  const statuses = schema.$defs.lifecycleStatus.enum;
   for (const item of integrations) {
     assert.deepEqual(Object.keys(item).sort(), [...schema.required].sort());
     assert.ok(statuses.includes(item.status));

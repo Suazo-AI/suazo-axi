@@ -17,6 +17,18 @@ Status and run resolve the same `APPDATA/npm` installation, and AXI passes its e
 `codex run` accepts prompt content only by existing local file path, never reads prompt contents or adds the prompt path to output, and always forces `-Sandbox read-only`.
 The adapter never accepts `WithTooling`, `Full`, `workspace-write`, `danger-full-access`, or apply flags.
 
-Host-only native connectors and MCP transports report `host-bridge-required`, not disconnected, because a standalone process cannot truthfully inspect host session state. Planned CLI adapters retain `planned` in the catalog; `doctor` may report their executables as `detected` or `not-detected`, which is not an authentication promise. Calendar remains `unconfigured`.
+Graphify is a local knowledge-map transport and does not add an AXI authentication flow.
+AXI resolves the already installed `graphify` executable, probes only `graphify --version`, and reads only the graph file selected for query, path, or affected traversal.
+It does not install or configure Graphify, copy credentials, configure MCP, or expose Graphify operations that write local artifacts.
+
+Notion inherits the existing `ntn` CLI session. `notion status` calls `/v1/users/me` and returns only availability, authentication, bot ID, and workspace name. Page search/view never accepts tokens or returns raw property payloads.
+
+Firecrawl inherits the existing Firecrawl CLI configuration. `firecrawl status` returns only availability, authentication, and remaining credits. Search and map return whitelisted URL metadata; AXI exposes no scrape, crawl, agent, interact, parse, monitor, or browser command.
+
+Higgsfield inherits the existing Higgsfield CLI session. `higgsfield status` returns only availability, authentication, plan, and remaining credits; account email is always discarded. Model and existing-generation metadata are read-only, and AXI exposes no generation-creation operation.
+
+Docker has no login flow in AXI and does not inherit an account credential. Its authority is the local Docker daemon socket or Windows named pipe already selected by the installed Docker CLI and current Docker context. AXI never reads Docker configuration or copies socket material. `docker status` returns only client/server versions, context, and daemon state; container inspection strips environment variables, commands, entrypoints, labels, and host mount paths. Login, logout, context changes, registry transfer, and every mutation are intentionally absent.
+
+Host-only native connectors and MCP transports report `host-bridge-required`, not disconnected, because a standalone process cannot truthfully inspect host session state. Hermes retains `planned` over `hermes-cli`; `doctor` may report its executable as `detected` or `not-detected`, which is not an authentication promise. Calendar remains `unconfigured`.
 
 When adding an adapter, use the provider's established authentication mechanism, pass only non-secret arguments, cap outputs, and normalize errors without provider text. Never put credentials in a manifest, log, fixture, or repository file.

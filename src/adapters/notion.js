@@ -117,17 +117,20 @@ export async function resolveNotionTransport({
     return { file: executable, prefixArgs: [], source: 'direct-cli' };
   }
 
-  const base = path.dirname(executable);
+  // Past this point the layout is a Windows shim's, so the joins must be Windows joins regardless
+  // of the host. Using the host `path` here works on Windows by luck and cannot work anywhere
+  // else: posix dirname('C:\\npm\\ntn.ps1') is '.', so the resolved entry never matches.
+  const base = path.win32.dirname(executable);
   if (/\.ps1$/i.test(executable)) {
     for (const nativeEntry of [
-      path.join(base, 'node_modules', 'ntn', 'bin', 'ntn.exe'),
-      path.join(base, 'node_modules', 'ntn', 'dist', 'ntn-win32-x64', 'ntn.exe'),
+      path.win32.join(base, 'node_modules', 'ntn', 'bin', 'ntn.exe'),
+      path.win32.join(base, 'node_modules', 'ntn', 'dist', 'ntn-win32-x64', 'ntn.exe'),
     ]) {
       if (await fileExists(nativeEntry)) return { file: nativeEntry, prefixArgs: [], source: 'native-cli' };
     }
   }
 
-  const nodeEntry = path.join(base, 'node_modules', 'ntn', 'bin', 'ntn');
+  const nodeEntry = path.win32.join(base, 'node_modules', 'ntn', 'bin', 'ntn');
   if (await fileExists(nodeEntry)) return { file: nodePath, prefixArgs: [nodeEntry], source: 'node-cli' };
   throw new AxiError('adapter-unavailable', 'Notion CLI launcher is unavailable');
 }

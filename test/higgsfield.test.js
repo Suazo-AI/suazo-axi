@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { AxiError } from '../src/core/errors.js';
@@ -129,11 +129,11 @@ test('Higgsfield rejects incomplete JSON and redacts CLI errors', async () => {
 });
 
 test('Higgsfield transport handles Windows shims, native fallback, direct binaries, and absence', async () => {
-  const nodeEntry = path.join('C:\\npm', 'node_modules', '@higgsfield', 'cli', 'bin', 'higgsfield.js');
+  const nodeEntry = path.win32.join('C:\\npm', 'node_modules', '@higgsfield', 'cli', 'bin', 'higgsfield.js');
   assert.deepEqual(await resolveHiggsfieldTransport({
     platform: 'win32', resolver: async () => 'C:\\npm\\higgsfield.cmd', fileExists: async (file) => file === nodeEntry, nodePath: 'node.exe',
   }), { file: 'node.exe', prefixArgs: [nodeEntry], source: 'node-cli' });
-  const nativeEntry = path.join('C:\\npm', 'node_modules', '@higgsfield', 'cli', 'vendor', 'hf.exe');
+  const nativeEntry = path.win32.join('C:\\npm', 'node_modules', '@higgsfield', 'cli', 'vendor', 'hf.exe');
   assert.deepEqual(await resolveHiggsfieldTransport({
     platform: 'win32', resolver: async () => 'C:\\npm\\higgsfield.ps1', fileExists: async (file) => file === nativeEntry,
   }), { file: nativeEntry, prefixArgs: [], source: 'native-cli' });

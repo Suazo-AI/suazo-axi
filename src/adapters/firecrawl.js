@@ -119,7 +119,9 @@ export async function resolveFirecrawlTransport({
   if (platform !== 'win32' || !/\.(?:cmd|bat|ps1)$/i.test(executable)) {
     return { file: executable, prefixArgs: [], source: 'direct-cli' };
   }
-  const nodeEntry = path.join(path.dirname(executable), 'node_modules', 'firecrawl-cli', 'dist', 'index.js');
+  // Windows shim layout, so the join must be a Windows join on any host: posix dirname of
+  // 'C:\\npm\\firecrawl.cmd' is '.', and the resolved entry would never match.
+  const nodeEntry = path.win32.join(path.win32.dirname(executable), 'node_modules', 'firecrawl-cli', 'dist', 'index.js');
   if (await fileExists(nodeEntry)) return { file: nodePath, prefixArgs: [nodeEntry], source: 'node-cli' };
   throw new AxiError('adapter-unavailable', 'Firecrawl CLI launcher is unavailable');
 }

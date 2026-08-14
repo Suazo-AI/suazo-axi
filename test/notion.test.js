@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { AxiError } from '../src/core/errors.js';
@@ -123,12 +123,12 @@ test('Notion rejects incomplete JSON and redacts CLI payloads', async () => {
 });
 
 test('Notion transport handles Windows shims, native fallback, direct binaries, and absence', async () => {
-  const windowsEntry = path.join('C:\\npm', 'node_modules', 'ntn', 'bin', 'ntn');
+  const windowsEntry = path.win32.join('C:\\npm', 'node_modules', 'ntn', 'bin', 'ntn');
   assert.deepEqual(await resolveNotionTransport({
     platform: 'win32', resolver: async () => 'C:\\npm\\ntn.cmd', fileExists: async (file) => file === windowsEntry, nodePath: 'node.exe',
   }), { file: 'node.exe', prefixArgs: [windowsEntry], source: 'node-cli' });
 
-  const nativeEntry = path.join('C:\\npm', 'node_modules', 'ntn', 'bin', 'ntn.exe');
+  const nativeEntry = path.win32.join('C:\\npm', 'node_modules', 'ntn', 'bin', 'ntn.exe');
   assert.deepEqual(await resolveNotionTransport({
     platform: 'win32', resolver: async () => 'C:\\npm\\ntn.ps1', fileExists: async (file) => file === nativeEntry,
   }), { file: nativeEntry, prefixArgs: [], source: 'native-cli' });

@@ -46,7 +46,9 @@ export async function resolveSupabaseTransport({
   if (!executable) throw new AxiError('adapter-unavailable', 'Supabase CLI is unavailable');
 
   if (platform === 'win32' && /\.(?:cmd|bat)$/i.test(executable)) {
-    const globalEntry = path.join(path.dirname(executable), 'node_modules', 'supabase', 'dist', 'supabase.js');
+    // Windows shim layout, so the join must be a Windows join on any host: posix dirname of
+    // 'C:\\npm\\supabase.cmd' is '.', and the resolved entry would never match.
+    const globalEntry = path.win32.join(path.win32.dirname(executable), 'node_modules', 'supabase', 'dist', 'supabase.js');
     if (await exists(globalEntry, access)) {
       return { file: node, prefixArgs: [globalEntry], source: 'global-cli' };
     }

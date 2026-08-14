@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { AxiError } from '../src/core/errors.js';
@@ -90,7 +90,7 @@ test('Firecrawl validates query, URL, and limits before invoking the runner', as
 });
 
 test('Firecrawl transport handles Windows shims, direct binaries, and absence', async () => {
-  const entry = path.join('C:\\npm', 'node_modules', 'firecrawl-cli', 'dist', 'index.js');
+  const entry = path.win32.join('C:\\npm', 'node_modules', 'firecrawl-cli', 'dist', 'index.js');
   for (const extension of ['cmd', 'ps1']) {
     assert.deepEqual(await resolveFirecrawlTransport({
       platform: 'win32', resolver: async () => `C:\\npm\\firecrawl.${extension}`, fileExists: async (file) => file === entry, nodePath: 'node.exe',

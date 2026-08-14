@@ -123,12 +123,14 @@ export async function resolveHiggsfieldTransport({
     return { file: executable, prefixArgs: [], source: 'direct-cli' };
   }
 
-  const base = path.dirname(executable);
+  // Windows shim layout, so the joins must be Windows joins on any host: posix dirname of
+  // 'C:\\npm\\higgsfield.ps1' is '.', and the resolved entry would never match.
+  const base = path.win32.dirname(executable);
   if (/\.ps1$/i.test(executable)) {
-    const nativeEntry = path.join(base, 'node_modules', '@higgsfield', 'cli', 'vendor', 'hf.exe');
+    const nativeEntry = path.win32.join(base, 'node_modules', '@higgsfield', 'cli', 'vendor', 'hf.exe');
     if (await fileExists(nativeEntry)) return { file: nativeEntry, prefixArgs: [], source: 'native-cli' };
   }
-  const nodeEntry = path.join(base, 'node_modules', '@higgsfield', 'cli', 'bin', 'higgsfield.js');
+  const nodeEntry = path.win32.join(base, 'node_modules', '@higgsfield', 'cli', 'bin', 'higgsfield.js');
   if (await fileExists(nodeEntry)) return { file: nodePath, prefixArgs: [nodeEntry], source: 'node-cli' };
   throw new AxiError('adapter-unavailable', 'Higgsfield CLI launcher is unavailable');
 }

@@ -33,8 +33,12 @@ test('Supabase transport prefers the installed local entry and safely falls back
   });
   assert.deepEqual(global, { file: '/usr/bin/supabase', prefixArgs: [], source: 'global-cli' });
 
-  const globalLauncher = path.join('global-bin', 'supabase.cmd');
-  const globalEntry = path.join('global-bin', 'node_modules', 'supabase', 'dist', 'supabase.js');
+  // This branch is Windows shim resolution, so the expectations are Windows paths on every host.
+  // Building them with the host path module made the test agree with the resolver only on
+  // Windows, and agree with a posix-joined bug on Linux: both sides were wrong in the same way,
+  // so it passed while proving nothing.
+  const globalLauncher = path.win32.join('global-bin', 'supabase.cmd');
+  const globalEntry = path.win32.join('global-bin', 'node_modules', 'supabase', 'dist', 'supabase.js');
   const windows = await resolveSupabaseTransport({
     localEntry: 'missing.js',
     access: async (file) => { if (file !== globalEntry) throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },

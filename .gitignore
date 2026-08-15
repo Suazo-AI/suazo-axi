@@ -17,3 +17,9 @@ coverage/
 *.pem
 *.key
 local-secrets.*
+
+# cgr (code-graph-rag) leaves its parse caches and embedding store in the repo it indexes.
+.cgr-dir-mtimes.json
+.cgr-hash-cache.json
+.cgr-parser-fingerprint
+.qdrant_code_embeddings/

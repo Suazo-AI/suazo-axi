@@ -2,7 +2,7 @@
 
 `suazo-axi` is a dependency-free Node.js ESM CLI that puts a compact, stable AXI-first interface over existing authenticated transports. It is a thin local broker: it neither stores credentials nor replaces provider backends.
 
-Implemented adapters cover local files with Node built-ins, installed Graphify knowledge-map traversal, GitHub repository, pull request, issue, and workflow-run reads through `gh`, Vercel deployment list/view, Supabase local status/project list, read-only Codex runs through the global lean wrapper, Notion page search/view through `ntn`, Firecrawl search/map, Higgsfield model and generation metadata, and Docker daemon/container/image/Compose metadata through the installed Docker CLI.
+Implemented adapters cover local files with Node built-ins, installed Graphify knowledge-map traversal, read-only Tree-sitter code-graph status, statistics, and dead-code reports through `cgr`, GitHub repository, pull request, issue, and workflow-run reads through `gh`, Vercel deployment list/view, Supabase local status/project list, read-only Codex runs through the global lean wrapper, Notion page search/view through `ntn`, Firecrawl search/map, Higgsfield model and generation metadata, and Docker daemon/container/image/Compose metadata through the installed Docker CLI.
 Static catalog statuses are durable lifecycle facts: `implemented`, `planned`, `host-bridge-required`, or `unconfigured`.
 Point-in-time readiness appears only in `doctor`; `daemon-stopped` means the Docker CLI is usable while its local engine is stopped.
 

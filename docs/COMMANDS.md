@@ -14,6 +14,9 @@ Global output is compact AXI text by default. Add `--format json` anywhere. `hel
 | `knowledge query --question <text> [--graph <graph.json>] [--budget N]` | Run a bounded Graphify knowledge query |
 | `knowledge path --from <node> --to <node> [--graph <graph.json>]` | Return the shortest Graphify path between two nodes |
 | `knowledge affected --node <node> [--graph <graph.json>] [--depth N]` | Return nodes affected within the selected depth |
+| `codegraph status` | Report whether the cgr stack is up, whether Memgraph and Qdrant answer, and which projects are synced |
+| `codegraph stats` | Return node and relationship counts for the shared code graph |
+| `codegraph dead-code --project <name> [--limit N] [--classes]` | Return symbols unreachable from known entry points, with the full total beside the returned page |
 | `github status` | Run the safe `gh auth status` check without exposing account text |
 | `github repo view [--repo owner/name]` | Return compact repository data |
 | `github pr list [--repo owner/name] [--limit N]` | Return number, title, state, and update time |
@@ -68,6 +71,13 @@ Query, path, and affected require an existing regular file and pass its real pat
 `knowledge status` remains successful when the graph is missing.
 Successful traversal text is trimmed, bounded to 256 KiB of combined provider output, and rejected when empty.
 The knowledge domain intentionally exposes no build, refresh, update, or watch command.
+
+`codegraph` reads the shared cgr code graph through the installed `cgr` CLI and never starts, stops, or indexes anything.
+It has no AXI login command: authority comes from the local Memgraph and Qdrant containers already reachable by `cgr`.
+Doctor separates the two failure modes an operator acts on differently: a missing `cgr` binary is `unavailable`, while an installed CLI whose Memgraph is unreachable is `daemon-stopped`.
+`codegraph status` succeeds in both the running and stopped cases and returns a definitive empty project list rather than an error.
+`dead-code` returns the full report count in `meta.total` beside the returned page, so a `--limit` never reads as the whole answer.
+The `cgr` CLI can also patch and rewrite source, and AXI intentionally exposes none of it: index, update, trace, export, delete-project, surgical replace, structural replace, and file writes all stay out until the mutation preconditions in [EXTENDING.md](EXTENDING.md) are met. Use the cgr MCP server directly for those.
 
 The Notion, Firecrawl, and Higgsfield adapters inherit their existing CLI sessions and expose no login/configuration command. Firecrawl intentionally has no scrape, crawl, agent, interact, parse, monitor, or browser operation. Higgsfield intentionally has no generation-creation or other mutating operation. Provider list and view responses are normalized into whitelisted fields; raw JSON, account email, keys, tokens, and diagnostics are discarded.
 

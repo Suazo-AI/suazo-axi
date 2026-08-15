@@ -14,6 +14,7 @@ import { firecrawlMap, firecrawlSearch, firecrawlStatus } from './adapters/firec
 import { higgsfieldGenerationList, higgsfieldGenerationView, higgsfieldModelList, higgsfieldStatus } from './adapters/higgsfield.js';
 import { composeList, containerList, containerView, dockerStatus, imageList } from './adapters/docker.js';
 import { knowledgeAffected, knowledgePath, knowledgeQuery, knowledgeStatus, validateKnowledgeText } from './adapters/knowledge.js';
+import { codegraphDeadCode, codegraphStats, codegraphStatus, validateProjectName } from './adapters/codegraph.js';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,7 @@ const ROOT_HELP = [
   'integrations list [--fields id,domain,...]',
   'files <list|read|find> ...',
   'knowledge <status|query|path|affected> ...',
+  'codegraph <status|stats|dead-code> ...',
   'github <status|repo|pr|issue|run> ...',
   'vercel deployment <list|view> ...',
   'supabase <status|projects list> ...',
@@ -56,6 +58,7 @@ const HELP = {
   docker: ['docker status', 'docker container list [--all] [--limit N]', 'docker container view --id <id>', 'docker image list [--limit N]', 'docker compose list'],
   codex: ['codex status', 'codex run --prompt-file <path> --cwd <dir> [--timeout-ms N] [--effort low|medium|high] [--mode read-only]'],
   knowledge: ['knowledge status [--graph <graph.json>]', 'knowledge query --question <text> [--graph <graph.json>] [--budget N]', 'knowledge path --from <node> --to <node> [--graph <graph.json>]', 'knowledge affected --node <node> [--graph <graph.json>] [--depth N]'],
+  codegraph: ['codegraph status', 'codegraph stats', 'codegraph dead-code --project <name> [--limit N] [--classes]'],
   integrations: ['integrations list [--fields id,domain,transport,phase,status,capabilities]'],
   doctor: ['doctor [--format json]'],
 };
@@ -102,6 +105,12 @@ const KNOWLEDGE_OPERATIONS = Object.freeze({
   affected: knowledgeAffected,
 });
 
+const CODEGRAPH_OPERATIONS = Object.freeze({
+  status: codegraphStatus,
+  stats: codegraphStats,
+  deadCode: codegraphDeadCode,
+});
+
 function commandHelp(topic) { return HELP[topic] || ROOT_HELP; }
 
 function compactPath(value) {
@@ -142,6 +151,7 @@ async function dispatch(positionals, flags, {
   github = GITHUB_OPERATIONS,
   codex = CODEX_OPERATIONS,
   knowledge = KNOWLEDGE_OPERATIONS,
+  codegraph = CODEGRAPH_OPERATIONS,
   notion = NOTION_OPERATIONS,
   firecrawl = FIRECRAWL_OPERATIONS,
   higgsfield = HIGGSFIELD_OPERATIONS,
@@ -218,6 +228,30 @@ async function dispatch(positionals, flags, {
       return { command: 'knowledge affected', ...(await knowledge.affected(flags.node, { graph: flags.graph, depth })), help: ['knowledge query --question <text>'] };
     }
     throw invalid('unknown-command', 'Unknown knowledge command', { next: commandHelp('knowledge') });
+  }
+  if (domain === 'codegraph') {
+    if (resource === 'status') {
+      assertCount(positionals, 2, 2, 'codegraph status');
+      rejectFlags(flags, []);
+      return { command: 'codegraph status', ...(await codegraph.status()), help: ['codegraph stats'] };
+    }
+    if (resource === 'stats') {
+      assertCount(positionals, 2, 2, 'codegraph stats');
+      rejectFlags(flags, []);
+      return { command: 'codegraph stats', ...(await codegraph.stats()), help: ['codegraph dead-code --project <name>'] };
+    }
+    if (resource === 'dead-code') {
+      assertCount(positionals, 2, 2, 'codegraph dead-code --project <name> [flags]');
+      rejectFlags(flags, ['project', 'limit', 'classes']);
+      const project = validateProjectName(requiredFlag(flags, 'project'), 'project');
+      const limit = boundedInt(flags.limit, 'limit', 50, { min: 1, max: 500 });
+      return {
+        command: 'codegraph dead-code',
+        ...(await codegraph.deadCode(project, { limit, includeClasses: flags.classes === true })),
+        help: ['codegraph status'],
+      };
+    }
+    throw invalid('unknown-command', 'Unknown codegraph command', { next: commandHelp('codegraph') });
   }
   if (domain === 'github') {
     if (resource === 'status') {
@@ -431,6 +465,7 @@ function commandLabel(positionals) {
   if (positionals[0] === 'integrations') return positionals[1] === 'list' ? 'integrations list' : 'integrations';
   if (positionals[0] === 'files') return ['list', 'read', 'find'].includes(positionals[1]) ? `files ${positionals[1]}` : 'files';
   if (positionals[0] === 'knowledge') return ['status', 'query', 'path', 'affected'].includes(positionals[1]) ? `knowledge ${positionals[1]}` : 'knowledge';
+  if (positionals[0] === 'codegraph') return ['status', 'stats', 'dead-code'].includes(positionals[1]) ? `codegraph ${positionals[1]}` : 'codegraph';
   if (positionals[0] === 'github') {
     if (positionals[1] === 'status') return 'github status';
     if (positionals[1] === 'repo' && positionals[2] === 'view') return 'github repo view';

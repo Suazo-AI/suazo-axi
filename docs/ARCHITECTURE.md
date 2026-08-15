@@ -28,8 +28,10 @@ flowchart LR
   Higgsfield --> HF[Existing Higgsfield CLI]
   Docker --> Engine[Existing Docker CLI and local daemon]
   Core --> Out[Compact AXI text or JSON]
-  Bridges[Optional host/MCP bridge] -. future .-> CLI
+  Bridges[Optional host/MCP bridge] -. draft .-> CLI
 ```
+
+A second transport class is drafted but unused: the [host bridge protocol](BRIDGE_PROTOCOL.md) covers MCP servers and host-native connectors, which do not fit the spawn-a-CLI-and-parse-stdout shape. No catalog service routes through it yet.
 
 ## Contracts
 

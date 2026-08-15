@@ -1,6 +1,10 @@
 export const integrations = Object.freeze([
   { id: 'files', domain: 'files', transport: 'node-builtins', phase: 1, status: 'implemented', capabilities: [{ resource: 'files', actions: ['list', 'read', 'find'], mutation: false }] },
   { id: 'knowledge', domain: 'knowledge', transport: 'graphify-cli', phase: 5, status: 'implemented', capabilities: [{ resource: 'knowledge-graph', actions: ['status', 'query', 'path', 'affected'], mutation: false }] },
+  // Read-only on purpose. cgr can also patch and rewrite code, but EXTENDING.md keeps
+  // mutation false until the CLI offers a previewable plan, an explicit --apply and
+  // idempotency keys, so the editing tools stay behind the MCP server instead.
+  { id: 'codegraph', domain: 'knowledge', transport: 'cgr-cli', phase: 7, status: 'implemented', capabilities: [{ resource: 'code-graph', actions: ['status', 'stats', 'dead-code'], mutation: false }] },
   { id: 'github', domain: 'github', transport: 'gh-cli', phase: 1, status: 'implemented', capabilities: [{ resource: 'authentication', actions: ['status'], mutation: false }, { resource: 'repository', actions: ['view'], mutation: false }, { resource: 'pull-request', actions: ['list', 'view', 'checks', 'reviews'], mutation: false }, { resource: 'issue', actions: ['list'], mutation: false }, { resource: 'workflow-run', actions: ['list', 'view', 'failed-summary'], mutation: false }] },
   { id: 'outlook-email', domain: 'email', transport: 'native-connector', phase: 'planned', status: 'host-bridge-required', capabilities: [{ resource: 'message', actions: ['list', 'read', 'search'], mutation: false }] },
   { id: 'notion', domain: 'knowledge', transport: 'ntn-cli', phase: 6, status: 'implemented', capabilities: [{ resource: 'authentication', actions: ['status'], mutation: false }, { resource: 'page', actions: ['search', 'view'], mutation: false }] },

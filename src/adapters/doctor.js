@@ -4,6 +4,7 @@ import { vercelStatus } from './vercel.js';
 import { supabaseAccessStatus } from './supabase.js';
 import { codexStatus } from './codex.js';
 import { knowledgeStatus } from './knowledge.js';
+import { codegraphStatus } from './codegraph.js';
 import { notionStatus } from './notion.js';
 import { firecrawlStatus } from './firecrawl.js';
 import { higgsfieldStatus } from './higgsfield.js';
@@ -19,6 +20,14 @@ function adapterStatus(result) {
     : result.data.available
       ? (result.data.authenticated ? 'ready' : 'authentication-required')
       : 'unavailable';
+}
+
+// The CLI being present is not the same as the graph being queryable: cgr needs its
+// Memgraph container up. That distinction is exactly what `daemon-stopped` is for.
+function codegraphAdapterStatus(result) {
+  if (result.data.degraded) return 'degraded';
+  if (!result.data.available) return 'unavailable';
+  return result.data.stackRunning && result.data.memgraphReachable ? 'ready' : 'daemon-stopped';
 }
 
 function dockerAdapterStatus(result) {
@@ -49,6 +58,7 @@ export async function doctor({
   firecrawlProbe = firecrawlStatus,
   higgsfieldProbe = higgsfieldStatus,
   dockerProbe = dockerStatus,
+  codegraphProbe = codegraphStatus,
   resolver = resolveExecutable,
 } = {}) {
   let github;
@@ -73,16 +83,18 @@ export async function doctor({
   } catch {
     knowledge = { data: { available: true, degraded: true } };
   }
-  const [notion, firecrawl, higgsfield, docker] = await Promise.all([
+  const [notion, firecrawl, higgsfield, docker, codegraph] = await Promise.all([
     safeProbe(notionProbe),
     safeProbe(firecrawlProbe),
     safeProbe(higgsfieldProbe),
     safeProbe(dockerProbe),
+    safeProbe(codegraphProbe),
   ]);
   const probes = await Promise.all(CLI_PROBES.map(async ([id, command]) => ({ id, available: Boolean(await resolver(command)) })));
   const adapters = [
     { id: 'files', status: 'ready' },
     { id: 'knowledge', status: knowledge.data.degraded ? 'degraded' : knowledge.data.available ? 'ready' : 'unavailable' },
+    { id: 'codegraph', status: codegraphAdapterStatus(codegraph) },
     { id: 'github', status: github.data.degraded ? 'degraded' : github.data.available ? (github.data.authenticated ? 'ready' : 'authentication-required') : 'unavailable' },
     { id: 'vercel', status: vercel.data.degraded ? 'degraded' : vercel.data.available ? (vercel.data.authenticated ? 'ready' : 'authentication-required') : 'unavailable' },
     { id: 'supabase', status: supabase.data.degraded ? 'degraded' : supabase.data.available ? (supabase.data.authenticated ? 'ready' : 'authentication-required') : 'unavailable' },

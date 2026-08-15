@@ -109,6 +109,26 @@ const ADAPTERS = [
     ],
   },
   {
+    id: 'codegraph',
+    probe: { name: 'codegraph status', args: ['codegraph', 'status'], check: ok },
+    optional: [
+      {
+        name: 'codegraph stats',
+        args: ['codegraph', 'stats'],
+        check: ok,
+        // The graph lives in Memgraph, not in the checkout, so a machine without the
+        // cgr stack up legitimately has nothing to count. Gate rather than fail.
+        precondition: (probe) => (probe.data?.memgraphReachable ? null : 'cgr stack is not running'),
+      },
+      {
+        name: 'codegraph dead-code',
+        args: (probe) => ['codegraph', 'dead-code', '--project', probe.data.projects[0].name, '--limit', '3'],
+        check: ok,
+        precondition: (probe) => (probe.data?.projects?.length ? null : 'no project synced into the cgr graph'),
+      },
+    ],
+  },
+  {
     id: 'github',
     probe: { name: 'github status', args: ['github', 'status'], check: (e) => (e.ok && e.data?.authenticated ? null : 'not authenticated') },
     required: [
@@ -231,8 +251,12 @@ function record(adapter, name, status, detail) {
   console.log(`${mark}  ${name}${detail ? `  - ${detail}` : ''}`);
 }
 
-async function runCheck(adapter, { name, args, check }) {
-  const { envelope, reason } = await invoke(args);
+// `args` may be a function of the probe envelope. Some identifiers are only knowable at
+// runtime - a cgr project key carries a content hash - and hardcoding one would make the
+// check pass on this machine and fail on every other.
+async function runCheck(adapter, { name, args, check }, probeEnvelope = null) {
+  const resolvedArgs = typeof args === 'function' ? args(probeEnvelope ?? { data: {} }) : args;
+  const { envelope, reason } = await invoke(resolvedArgs);
   if (!envelope) {
     record(adapter, name, 'fail', reason);
     return null;
@@ -267,11 +291,11 @@ for (const adapter of ADAPTERS) {
       continue;
     }
   }
-  for (const op of adapter.required ?? []) await runCheck(adapter.id, op);
+  for (const op of adapter.required ?? []) await runCheck(adapter.id, op, probeEnvelope);
   for (const op of adapter.optional ?? []) {
     const blocked = op.precondition(probeEnvelope ?? { data: {} });
     if (blocked) record(adapter.id, op.name, 'skip', blocked);
-    else await runCheck(adapter.id, op);
+    else await runCheck(adapter.id, op, probeEnvelope);
   }
 }
 
